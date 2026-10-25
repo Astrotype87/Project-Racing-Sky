@@ -1,0 +1,202 @@
+
+
+Future Tasks:
+
+Ship
+- Speed zone refills boost & afterburner
+- Ship Health mechanics
+    - Collision reduces health
+    - Health recharge
+- Energy mechanics
+    - Boost and afterburner share tha same fuel/energy 
+- Ship Global Config (settings that apply for all ships)
+- Implement Stall Zone physics
+- Tweak Grip/Strafe/Sideshift physics
+    - Some PROBLEM with Sideshift physics is that it has some speed limit
+        IF you are turning left and your sliding right:
+            sideshifting right => has no effect
+            sideshifting left => instantly removes side velocity and moves left
+- Create Ship Collider 3D model
+- Ship Audio system
+- Implement Drafting/Slipstream physics
+
+
+Camera
+- Look at mode
+    / New camera view lookAtPivot setting where camera always look at pivot point
+    / Implement look rotation in CameraFollow
+    - Implement look rotation in CameraDamping
+- Smooth camera view transition (ex: Close to Far)
+- Camera collision
+- Camera ShakeImpulse: In and Out curve
+- Camera effects (damping, dynamic offset, fov, shake) settings (override?)
+- Camera VFX component
+
+Input Manager
+/ Create Input.InputData class
+    / Contains data and events
+    / Events that you can CLEAR!
+    / Map this InputData to input action
+
+HUD
+- Dynamic HUD offset clipping
+- HUD Profile for different HUD themes
+
+Scriptable Objects
+/ Optional variables
+/ Testing base and override assets
+    / Use update function to load the base asset
+- Implement Ship Profile variants and overriding
+    - One Problem:
+        it is not possible to copy and paste data from ShipPhysics inspector to
+        to ShipProfile because of Optional<> struct
+        leading you to retype everything just to copy
+
+Possible options
+- ShipCollider and ShipTrigger classes to manage collisions
+- Ship sudden ground impulse in ramps
+    Make some collision tests by Debug.Log()
+    Some collisions are introducing large impulse peaks in ramps
+    Consider clamping these peaks
+    Or check if composite colliders causes this
+- Create new ship profile out of current ship settings. Save as new ship profile.
+
+PROBABLY FIX:
+- Ship Kinematics
+- when kinematic reduces, let the ship drag slow things down
+
+
+
+
+
+-----------------------------------------------
+Completions saved at August 31, 2024 SAT
+
+- Look at mode
+    / New camera view lookAtPivot setting where camera always look at pivot point
+    / Implement look rotation in CameraFollow
+
+Input Manager
+/ Create Input.InputData class
+    / Contains data and events
+    / Events that you can CLEAR!
+    / Map this InputData to input action
+
+Scriptable Objects
+/ Optional variables
+/ Testing base and override assets
+    / Use update function to load the base asset
+
+-----------------------------------------------
+Assigned at August 27, 2024 TUE
+Completed at August 28, 2024 WED
+
+Ship
+/ Sideshift and jump cooldown in ShipController
+/ Speed pad refills boost & afterburner
+
+Camera
+/ FOV and Offset Effects for speed pads and zones depend on their direction
+    
+-----------------------------------------------
+
+Assigned and Completed at
+August 26, 2024 | MON
+
+REFACTORING INPUT-TO-SHIP INTERACTION
+/ STEP ONE (InputManager)
+    / Check for any Input related classes referencing Ship.InputData, if so, plan to remove later
+    / InputEvents class serves as intermediary between Unity InputSystem and InputManager
+    / All InputHandlers have reference to InputEvents set up by InputManager
+    / Input handlers trigger actions inside InputEvents
+/ STEP TWO (ShipController)
+    / Remove Boost and Afterburner logic from ShipMechanics
+    / Assign PilotInput, TrackInput and ZoneInput fields and events to InputData
+    / Implement the tested Boost and Afterburner cooldown logic inside ShipController
+
+/ Ship boost/afterburner consume and refill
+    / Thrust refills boost/afterburner bar
+    / Boost refill logic
+    / Optional cooldown/delay time after consume before refill
+
+-----------------------------------------------
+
+Assigned at August 10, 2024
+Completed at August 20, 2024
+
+Ship
+/ Implement back Maglev, Speed Pad and Jump
+    / Keyboard triggers for maglev, speed pad & Jump
+    / Prefab and scripts for speed pad and jump from Physics test Ground
+        / just drag and drop prefab and script to project
+/ Ship Animation updates
+    / Update hover animation noise generator
+    / Ship angle changes when strafing, also create options: strafeAngle, strafeSmooth
+
+Camera
+/ Rear view
+/ New camera follow & orbit damping limit/clip setting
+/ CameraProfile functionality
+    / Preset classes for damping, offset, FOV, and shake
+    / Camera profile loading
+    / Load button
+    / Load options(like from Ship profile load settings)
+
+Project
+/ Import racetrack assets
+    / Cartoon racetrack
+    / City roads
+
+-----------------------------------------------
+
+August 09, 2024 | Completed Tasks
+
+/ Move CameraView settings from CameraFollow to CameraSystem
+/ Consider renaming CameraFollow to CameraDamping
+/ Consider renaming CameraSystem to CameraFollow/CameraBase/ShipCamera
+/ Handle total camera position, rotation, FOV inside CameraFollow script
+
+/ ShipModel cam offset setting (Close/Far, Top, Front, Cockpit)
+/ Set ship prefab loader
+/ Load prefab button
+
+-----------------------------------------------
+
+August 06, 2024
+
+/ Slight camera pitch up (Camera offset)
+/ Create new script CameraOffset
+
+
+-----------------------------------------------
+
+Aug 02, 2024
+
+Project Racing Sky Update
+/ Create a project backup with backup date
+/ Update project asset folder structure to comply with asset folder structure plan
+/ Add Project Racing Sky namespace and its nested namespaces
+/ Implement Utility class from test project
+/ Implement Ship System from test project
+/ Implement Camera System from test project
+
+Camera updates
+/ FOV update and new settings
+/ Shake connect to ship speed
+
+Ship orientation fixes to track
+/ Sensor data
+/ Pitch fixes
+/ Roll fixes
+/ Air orient physics
+
+
+/ Camera Shake Update
+    / Impulse shake
+    / Camera shake intensity depend on speed
+/ Camera FOV Update
+    / Create FOV struct
+    / More FOV settings
+    / FOV change using smooth damp
+/ Sensor struct container for hover sensors, front, rear, left, right and center sensors (for quick pitch or roll recoveries)
+

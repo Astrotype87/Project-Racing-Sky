@@ -1,0 +1,80 @@
+SEP-01-2024 MON
+/ Move input logs LIKE SPEED PAD/MAGNET LOCK ON/OFF to ShipController
+- verify and refactor AudioBehaviour code
+
+
+SEP-03-2024 TUE
+/ Maglev Quick Track Alignment / Pitch/Roll Alignment
+- Auto Air Pitch Mode
+    - Control air pitch align in global axis + pitch 
+
+
+OCT-04-2024 FRI
+- Create ShipCollider class
+
+-----------------------------------------------
+
+FUTURE TASKS:
+
+Ship
+- Speed zone refills boost & afterburner
+- Ship Health mechanics
+    - Collision reduces health
+    - Health recharge
+- Energy mechanics
+    - Boost and afterburner share tha same fuel/energy 
+- Ship Global Config (settings that apply for all ships)
+- Implement Stall Zone physics
+- Tweak Grip/Strafe/Sideshift physics
+    - Some PROBLEM with Sideshift physics is that it has some speed limit
+        IF you are turning left and your sliding right:
+            sideshifting right => has no effect
+            sideshifting left => instantly removes side velocity and moves left
+- Create Ship Collider 3D model
+- Ship Audio system
+- Implement Drafting/Slipstream physics
+
+
+Camera
+- Look at mode
+    / New camera view lookAtPivot setting where camera always look at pivot point
+    / Implement look rotation in CameraFollow
+    - Implement look rotation in CameraDamping
+- Smooth camera view transition (ex: Close to Far)
+- Camera collision
+- Camera ShakeImpulse: In and Out curve
+- Camera effects (damping, dynamic offset, fov, shake) settings (override?)
+- Camera VFX component
+
+Input Manager
+/ Create Input.InputData class
+    / Contains data and events
+    / Events that you can CLEAR!
+    / Map this InputData to input action
+
+HUD
+- Dynamic HUD offset clipping
+- HUD Profile for different HUD themes
+
+Scriptable Objects
+/ Optional variables
+/ Testing base and override assets
+    / Use update function to load the base asset
+- Implement Ship Profile variants and overriding
+    - One Problem:
+        it is not possible to copy and paste data from ShipPhysics inspector to
+        to ShipProfile because of Optional<> struct
+        leading you to retype everything just to copy
+
+Possible options
+- ShipCollider and ShipTrigger classes to manage collisions
+- Ship sudden ground impulse in ramps
+    Make some collision tests by Debug.Log()
+    Some collisions are introducing large impulse peaks in ramps
+    Consider clamping these peaks
+    Or check if composite colliders causes this
+- Create new ship profile out of current ship settings. Save as new ship profile.
+
+PROBABLY FIX:
+- Ship Kinematics
+- when kinematic reduces, let the ship drag slow things down

@@ -1,0 +1,59 @@
+using UnityEngine;
+using UnityEngine.UI;
+
+namespace ProjectName.UI
+{
+    public class UIElement : MonoBehaviour
+    {
+        // INSPECTOR FIELDS
+        [Header("Properties")]
+        // Properties like color, text, size
+        
+        [Header("Animation")]
+        // Animation settings like delay, move time, size, etc.
+        
+        [Header("Components")]
+        // References to components
+        // Common components: Image, CanvasGroup, Text_TMP, RectTransform
+        
+        
+        // PROPERTIES
+        // insert own public properties
+        
+        // EVENTS
+        // insert own events
+        
+        // PRIVATE FIELDS
+        
+        
+        
+        // MONOBEHAVIOUR METHODS
+        private void Awake() { }
+        private void OnDisable() { }
+        private void OnValidate() { }
+        
+        
+        // PUBLIC METHODS - methods accessed by other classes referencing this class
+        public void OpenElement()       // Open UI element with animation
+        public void CloseElement()      // Close UI element with animation
+        public void ForceOpenElement()  // Open UI element instantly
+        public void ForceCloseElement() // Close UI element instantly
+        
+        // POINTER METHODS - implementation of pointer interfaces
+        
+        
+        // HANDLE METHODS - subscribed to component's events / called by pointer methods
+        
+        
+        // ANIMATE METHODS - handle animations
+        public void GetBaseValues()
+        public void AnimateOpenElement()
+        public void AnimateCloseElement()
+        
+        // ON VALIDATE METHODS - called when changes are made in inspector
+        
+        
+        // 
+    }
+    
+}

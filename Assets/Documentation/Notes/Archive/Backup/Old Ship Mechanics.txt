@@ -1,0 +1,206 @@
+using UnityEngine;
+using NaughtyAttributes;
+using System.Collections;
+
+namespace ProjectRacingSky.Ship
+{
+    [DefaultExecutionOrder(ScriptOrder.ShipMechanics)]
+    public class ShipMechanics : MonoBehaviour
+    {
+        // INSPECTOR FIELDS
+        [Header("Status")]
+        [SerializeField] [ProgressBar("Boost", "boostMax", EColor.Yellow)] private float currentBoost;
+        [SerializeField] [ProgressBar("Afterburner", "aftbrnMax", EColor.Blue)] private float currentAfterburner;
+        [SerializeField] [ProgressBar("Health", "healthMax", EColor.Green)] private float currentHealth;
+        
+        [Header("Settings")]
+        [SerializeField] private float boostMax;
+        [SerializeField] private float aftbrnMax;
+        [SerializeField] private float healthMax;
+        [Space(5)]
+        [SerializeField] private float boostCooldown;       // Input cooldown
+        [SerializeField] private float boostConsume;
+        [SerializeField] private float boostRefill;
+        [Space(5)]
+        [SerializeField] private float aftbnrCooldown;      // Input cooldown
+        [SerializeField] private float aftbrnConsume;
+        [SerializeField] private float aftbrnRefill;
+        [SerializeField] private float aftbrnEmptyCap;
+        
+        [Header("References")]
+        [SerializeField] private InputData inputData;
+        [SerializeField] private MechanicsData mechanicsData;
+        
+        // PRIVATE FIELDS
+        [SerializeField] private bool isBoostOnCooldown;
+        [SerializeField] private bool isAfterburnerLastHoldEmpty;
+        
+        
+        // MONOBEHAVIOUR METHODS
+        private void Start()
+        {
+            InitializeMechanicsData();
+        }
+        
+        private void Update()
+        {
+            // Update inspector info
+            currentBoost = mechanicsData.boost;
+            currentAfterburner = mechanicsData.afterburner;
+            currentHealth = mechanicsData.health;
+        }
+        
+        private void FixedUpdate()
+        {
+            UpdateBoost();
+            UpdateAfterburner();
+        }
+        
+        private void OnValidate()
+        {
+            if (Application.isPlaying) return;
+            
+            currentBoost = mechanicsData.boost;
+            currentHealth = mechanicsData.health;
+        }
+        
+        
+        // PUBLIC METHODS
+        public void SetDependencies(InputData inputData, MechanicsData mechanicsData)
+        {
+            this.inputData = inputData;
+            this.mechanicsData = mechanicsData;
+        }
+        
+        public void SetMechanicsConfig(MechanicsConfig mechanicsConfig)
+        {
+            // TODO: Empty SetMechanicsConfig
+            boostMax = mechanicsConfig.boost;
+            healthMax = mechanicsConfig.health;
+        }
+        
+        
+        // MECHANICS
+        public void InitializeMechanicsData()
+        {
+            inputData.OnBoost += () => StartCoroutine(OnBoost());
+            
+            mechanicsData.boost = boostMax;
+            mechanicsData.afterburner = aftbrnMax;
+            mechanicsData.health = healthMax;
+            
+            mechanicsData.canBoost = true;
+            mechanicsData.canAfterburner = true;
+        }
+        
+        public void UpdateBoost()
+        {
+            float thrustRefill = inputData.thrustInput;
+            
+            // REFILL BOOST
+            if (mechanicsData.boost < boostMax)
+                mechanicsData.boost += Time.fixedDeltaTime * thrustRefill;
+            
+            // ENSURE AMOUNT IS 0 >= boost >= maxBoost
+            mechanicsData.boost = Mathf.Clamp(mechanicsData.boost, 0, boostMax);
+            
+            // CAN BOOST
+            mechanicsData.canBoost = mechanicsData.boost >= 1 && isBoostOnCooldown;
+        }
+        
+        public void UpdateAfterburner()
+        {
+            bool afterburnerInput = inputData.afterburnerInput != 0;
+            float thrustRefill = inputData.thrustInput;
+            
+            // CONSUME AFTERBURNER - if afterburner input, aftbnr bar is not empty, and can afterburner
+            if (afterburnerInput && mechanicsData.afterburner > 0 && mechanicsData.canAfterburner)
+                mechanicsData.afterburner -= Time.fixedDeltaTime * aftbrnConsume;
+            
+            // if (mechanicsData.afterburner < aftbrnMax || (!mechanicsData.canAfterburner && !afterburnerInput))
+            // REFILL AFTERBURNER - if no afterburner input AND is not full, OR cannot use afterburner
+            if ((!afterburnerInput && mechanicsData.afterburner < aftbrnMax) || !mechanicsData.canAfterburner)
+                mechanicsData.afterburner += Time.fixedDeltaTime * thrustRefill * aftbrnRefill;
+            
+            // ENSURE AMOUNT IS 0 >= afterburner >= maxAfterburner
+            mechanicsData.afterburner = Mathf.Clamp(mechanicsData.afterburner, 0, aftbrnMax);
+            
+            // HOLDING AFTERBURNER
+            if (afterburnerInput && mechanicsData.afterburner <= 0)
+                mechanicsData.canAfterburner = false;
+            if (!afterburnerInput)
+                mechanicsData.canAfterburner = aftbrnEmptyCap < mechanicsData.afterburner;
+            
+            isAfterburnerLastHoldEmpty = mechanicsData.canAfterburner;
+        }
+        
+        
+        // EVENT BASED
+        public IEnumerator OnBoost()
+        {
+            if (!isBoostOnCooldown && mechanicsData.boost >= 1)
+            {
+                // CONSUME BOOST
+                mechanicsData.boost -= 1 * boostConsume;
+                
+                // BOOST COOLDOWN
+                isBoostOnCooldown = true;
+                yield return new WaitForSeconds(boostCooldown);
+                isBoostOnCooldown = false;
+            }
+        }
+        
+        
+        
+    }
+}
+
+
+
+
+
+
+
+// ShipMechanics manage afterburner logic
+// ShipController manage cooldown logic
+
+
+
+
+
+
+// BOOST MECHANICS
+
+// Click space to boost
+// One boost consumes one unit
+
+// If the boost bar is full, you can boost
+// If you hold thrust, the boost refills
+// If the boost bar is less than one unit, you cannot boost
+
+// The cooldown for each use of boost is 2 seconds
+// The boost bar refills one unit per 10 seconds
+
+// The cooldown for each use of boost is 2 seconds
+// The boost bar refills one unit per 10 seconds
+
+
+
+
+// HOW TO CONNECT InputData.OnBoost action to ShipMechanics and ShipPhysics
+
+// If space bar is hit, InputData.OnBoost action is triggered
+
+// On ShipMechanics, if boost bar is not less than 1, and is not cooling down
+//     Consume one boost
+//     Wait for 2 seconds cooldown, then set canBoost to true
+
+// On ShipPhysics, if canBoost is true
+//     Trigger boostInput
+//     set canBoost to false
+
+
+
+
+
+

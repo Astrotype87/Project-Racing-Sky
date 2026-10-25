@@ -1,0 +1,226 @@
+using UnityEngine;
+using DG.Tweening;
+
+namespace ProjectRacingSky.Ship
+{
+    [DefaultExecutionOrder(ScriptOrder.ShipAnimation)]
+    public class ShipAnimation : MonoBehaviour
+    {
+        // FIELDS & PROPERTIES
+        #region INSPECTOR
+        
+        [Header("Steer Animation")]
+        [Range(0, 90)] public float rollAngle;
+        [Range(0, 1)] public float rollTime;
+        [Range(0, 1)] public float rollSmooth;
+        
+        [Header("Hover Animation")]
+        public float moveSpeed;
+        public Vector3 moveOffset;
+        public float rotateSpeed;
+        public Vector3 rotateOffset;
+        [Range(0, 1)] public float idleFadeInOut;
+        
+        [Header("Airbrake Animation")]
+        [Range(-90, 90)] public float airbrakeAngle;
+        [Range(0, 4)] public float airbrakeOpenTime;
+        [Range(0, 4)] public float airbrakeCloseTime;
+        [Range(0, 1)] public float airbrakeSmooth;
+        
+        [Header("Canopy Animation")]
+        [Range(0, 90)] public float canopyAngle;
+        [Range(0, 10)] public float canopyOpenTime;
+        
+        [Header("References")]
+        [SerializeField] private ShipModel shipModel;
+        [SerializeField] private InputData inputData;
+        [SerializeField] private PhysicsData physicsData;
+        [SerializeField] private VectorData vectorData;
+        
+        #endregion
+        
+        #region FIELDS
+        
+        // PRIVATE GETTERS
+        private Transform modelTransform => shipModel.ModelTransform;
+        private Transform[] airbrakeLeft => shipModel.AirbrakeLeft;
+        private Transform[] airbrakeRight => shipModel.AirbrakeRight;
+        private Transform[] airbrakeFull => shipModel.AirbrakeFull;
+        private Transform canopy => shipModel.Canopy;
+        
+        // PRIVATE FIELDS
+        private float targetRollFactor;                         // STEER ROLL ANIMATION
+        private float currentRollFactor;
+        private float currentRollVelocity;
+        
+        private const float PI2 = Mathf.PI * 2;                 // HOVER ANIMATION
+        private float targetIntensity;
+        private float hoverIntensity;
+        private float hoverIntensityVelocity;
+        
+        private float moveTime;
+        private float rotateTime;
+        private Vector3 applyMove;
+        private Vector3 applyRotate;
+        private Vector3 applyRoll;
+        
+        private float smoothLeftAngle, smoothRightAngle;        // AIRBRAKE ANIMATION
+        private float targetLeftAngle, targetRightAngle;
+        private float p_targetLeftAngle, p_targetRightAngle;
+        private float leftAngleVelocity, rightAngleVelocity;
+        
+        private bool isCanopyOpen;                              // CANOPY ANIMATION
+        private bool isCanopyStillMoving;
+        
+        #endregion
+        
+        
+        // CONSTRUCTOR & FINALIZER
+        public ShipAnimation()
+        {
+            rollAngle = 30;
+            rollTime = 0.1f;
+            rollSmooth = 0.33f;
+            
+            moveSpeed = 0.5f;
+            moveOffset = new Vector3(0.15f, 0.25f, 0.1f);
+            rotateSpeed = 0.25f;
+            rotateOffset = new Vector3(1, 0.5f, 2);
+            idleFadeInOut = 0.75f;
+            
+            airbrakeAngle = 45;
+            airbrakeOpenTime = 0.25f;
+            airbrakeCloseTime = 1f;
+            airbrakeSmooth = 0.075f;
+        }
+        
+        
+        // MONOBEHAVIOUR METHODS
+        private void Start()
+        {
+            InitializeShipAnimation();
+        }
+        
+        private void LateUpdate()
+        {
+            UpdateShipAnimation();
+            UpdateAirbrakeAnimation();
+        }
+        
+        
+        // PUBLIC METHODS
+        public void SetDependencies(ShipModel shipModel,
+            InputData inputData, PhysicsData physicsData, VectorData vectorData)
+        {
+            this.shipModel = shipModel;
+            
+            this.inputData = inputData;
+            this.physicsData = physicsData;
+            this.vectorData = vectorData;
+        }
+        
+        public void SetShipModel(ShipModel shipModel)
+        {
+            this.shipModel = shipModel;
+        }
+        
+        public void SetAnimationConfig(AnimationConfig animationConfig)
+        {
+            // TODO: Empty SetAnimationConfig
+        }
+        
+        
+        // PRIVATE METHODS
+        private void InitializeShipAnimation()
+        {
+            inputData.OnCanopy += () => OpenCloseCanopyAnimation();
+            
+            moveTime = Random.Range(0, PI2);
+            rotateTime = Random.Range(0, PI2);
+        }
+        
+        private void UpdateShipAnimation()
+        {
+            // Steering roll animation
+            targetRollFactor = Mathf.MoveTowards(targetRollFactor, inputData.steerInput, Time.deltaTime / rollTime);
+            currentRollFactor = Mathf.SmoothDamp(currentRollFactor, targetRollFactor, ref currentRollVelocity, rollSmooth);
+            
+            // The slower the ship, the stronger the hover animation
+            targetIntensity = (1f - Mathf.Clamp01(vectorData.localVelocityKPH.z / 200)) * (physicsData.isOnGround ? 1 : 0);
+            hoverIntensity = Mathf.SmoothDamp(hoverIntensity, targetIntensity, ref hoverIntensityVelocity, idleFadeInOut);
+            
+            // Generate random number smoothly between -1 and 1 using 2d perlin noise
+            // Where x and y position moves in circle inside 2d perlin map for seamless animation loop
+            // Designed to avoid float aging of Time.deltaTime
+            // Parameters: t = time, s = speed, r = radius, o = offset
+            static float TimeGen(ref float time, float speed, float radius)
+                => time += (Time.deltaTime * speed - (time > PI2 ? PI2 : 0)) / radius;
+            static float NumGen(float time, float offset, float radius)
+                => Mathf.PerlinNoise((Mathf.Sin(time) + 1) / 2 * radius + offset, (Mathf.Cos(time) + 1) / 2 * radius + offset) * 2 - 1;
+            
+            // OLD VERSION
+            // static float TimeGen(ref float t, float s, float r) => t += (t < PI2) ? Time.deltaTime * s / r : -t;
+            // static float NumGen(float t, float o, float r) => (Mathf.PerlinNoise((Mathf.Sin(t) + o) * r, (Mathf.Cos(t) + o) * r) - 0.5f) * 2;
+            
+            // Update move and rotate time
+            TimeGen(ref moveTime, moveSpeed, 100);
+            TimeGen(ref rotateTime, rotateSpeed, 100);
+            
+            // Calculate move and rotate offset, and roll
+            applyMove = Vector3.Scale(new Vector3(NumGen(moveTime, 1, 100), NumGen(moveTime, 2, 100), NumGen(moveTime, 3, 100)), moveOffset);
+            applyRotate = Vector3.Scale(new Vector3(NumGen(rotateTime, 4, 100), NumGen(rotateTime, 5, 100), NumGen(rotateTime, 6, 100)), rotateOffset);
+            applyRoll = new Vector3(0, 0, rollAngle * -currentRollFactor);
+            
+            // Apply move and rotate hover animation, and ship roll animation
+            modelTransform.localPosition = applyMove * hoverIntensity;
+            modelTransform.localRotation = Quaternion.Euler(applyRotate * hoverIntensity + applyRoll);
+        }
+        
+        private void UpdateAirbrakeAnimation()
+        {
+            // Avoid null reference
+            if (airbrakeLeft == null || airbrakeRight == null) return;
+            
+            // Airbrake open and close speed
+            float leftTime = targetLeftAngle >= p_targetLeftAngle ? airbrakeOpenTime : airbrakeCloseTime;
+            float rightTime = targetRightAngle >= p_targetRightAngle ? airbrakeOpenTime : airbrakeCloseTime;
+            p_targetLeftAngle = targetLeftAngle;
+            p_targetRightAngle = targetRightAngle;
+            
+            // Calculate target airbrake angle
+            targetLeftAngle = Mathf.MoveTowards(targetLeftAngle, inputData.airbrakeLeftInput, Time.deltaTime / leftTime);
+            targetRightAngle = Mathf.MoveTowards(targetRightAngle, inputData.airbrakeRightInput, Time.deltaTime / rightTime);
+            
+            // Calculate smoothed airbrake angle
+            smoothLeftAngle = Mathf.SmoothDamp(smoothLeftAngle, targetLeftAngle, ref leftAngleVelocity, airbrakeSmooth);
+            smoothRightAngle = Mathf.SmoothDamp(smoothRightAngle, targetRightAngle, ref rightAngleVelocity, airbrakeSmooth);
+            
+            // Apply airbrake angle local rotation
+            for (int i = 0; i < airbrakeLeft.Length; i++)
+                airbrakeLeft[i].localRotation = Quaternion.Euler(smoothLeftAngle * -airbrakeAngle, 0, 0);
+            
+            for (int i = 0; i < airbrakeRight.Length; i++)
+                airbrakeRight[i].localRotation = Quaternion.Euler(smoothRightAngle * -airbrakeAngle, 0, 0);
+        }
+        
+        private void OpenCloseCanopyAnimation()
+        {
+            // Wait for canopy to finish opening/closing
+            if (isCanopyStillMoving) return;
+            
+            if (!isCanopyOpen)
+                canopy.DOLocalRotate(new Vector3(-canopyAngle, 0, 0), canopyOpenTime)
+                    .SetEase(Ease.OutFlash)
+                    .OnComplete(() => isCanopyStillMoving = false);
+            else
+                canopy.DOLocalRotate(new Vector3(0, 0, 0), canopyOpenTime)
+                    .SetEase(Ease.InOutFlash)
+                    .OnComplete(() => isCanopyStillMoving = false);
+            
+            isCanopyOpen = !isCanopyOpen;
+            isCanopyStillMoving = true;
+        }
+        
+    }
+    
+}

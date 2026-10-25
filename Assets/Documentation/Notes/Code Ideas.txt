@@ -1,0 +1,26 @@
+Conversion of KeyboardConfigProfile scriptable object to KeyboardConfig struct
+The KeyboardConfigProfile scriptable object contains the same variables as KeyboardConfig struct
+The KeyboardConfig struct can be exported from KeyboardConfigProfile via GetKeyboardConfig property
+
+public class KeyboardConfigProfile
+{
+    public string thrustKey;
+    public string steerKey;
+    public string airbrakeLeftKey;
+    public string airbrakeRightKey;
+    
+    public KeyboardConfig GetKeyboardConfig => new KeyboardConfig() {
+        thrustKey = this.thrustKey;
+        steerKey = this.steerKey;
+        airbrakeLeftKey = this.airbrakeLeftKey;
+        airbrakeRightKey = this.airbrakeRightKey;
+    }
+}
+
+public struct KeyboardConfig
+{
+    public string thrustKey;
+    public string steerKey;
+    public string airbrakeLeftKey;
+    public string airbrakeRightKey;
+}

@@ -1,0 +1,17 @@
+CREATED AT 2024/08/10 7:59 AM
+
+OTHER TASKS:
+    CAMERA
+    - CAMERA COLLISION: Make the camera collide with other objects so it doesnt clip
+        New script CameraCollision
+        Consider using raycast at camera offset direction
+        If the normal behind faces the ship, make camera direction go toward the ship (reduce X & Z ofset)
+        If the normab behind faces downwards, make camera reduce the height (reduce Z offset only)
+    
+    SHIP
+    - ANIMATION: Jet Engine trail depending on thrust control, not speed
+    - COLLIDER/MECHANICS/PHYSICS: Shoot raycast upwards to detect if ship is upside down. If upside down for 2 seconds, respawn ship.
+    
+    HUD
+    - DYNAMIC HUD: When on ground, get ship speed relative to ground normal, when on air, get ship speed by overall velocity (rigidbody.speed * 2.6f)
+

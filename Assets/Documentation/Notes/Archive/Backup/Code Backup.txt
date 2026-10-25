@@ -1,0 +1,62 @@
+/* OLD DRAG ALGORITHM BEFORE FIXING IRREGULAR ANGLE (EX: 30* YAW) SCALING ISSUE
+// APPLY DRAG
+    Vector3 localVelocity = shipRigidbody.transform.InverseTransformVector(shipRigidbody.velocity);
+    Vector3 scaledVelocity = Vector3.Scale(localVelocity, physical.dragScale);
+    Vector3 currentVelocity = shipRigidbody.transform.TransformVector(scaledVelocity) - _kinematicVelocity;
+    
+    Vector3 totalDrag = -currentVelocity * global.drag;
+    Vector3 appliedDrag = Vector3.Scale(totalDrag, VectorUtil.Clamp01(Vector3.one - _counterDrag.Absolute()));
+    shipRigidbody.AddForce(appliedDrag, ForceMode.Acceleration);
+    Debug.Log($"localVelocity: {localVelocity}    scaledVelocity: {scaledVelocity}    currentVelocity: {currentVelocity}");
+    Debug.Log($"APPLIED DRAG BREAKDOWN: totalDrag: {totalDrag.ToString("F5")} counter: {VectorUtil.Clamp01(Vector3.one - _counterDrag.Absolute()).ToString("F5")}");
+    Debug.Log($"(LOCAL) appliedDrag: {shipRigidbody.transform.InverseTransformVector(appliedDrag)} (LOCAL)_counterDrag.Absolute(): {shipRigidbody.transform.InverseTransformVector(_counterDrag.Absolute()).ToString("F5")}");
+    
+    Vector3 localAngularVelocity = shipRigidbody.transform.InverseTransformVector(shipRigidbody.angularVelocity);
+    Vector3 scaledAngularVelocity = Vector3.Scale(localAngularVelocity, physical.angularDragScale);
+    Vector3 currentAngularVelocity = shipRigidbody.transform.TransformVector(scaledAngularVelocity) /*-_turbulenceKinematicAngularVelocity*/;
+            
+    Vector3 totalAngularDrag = -currentAngularVelocity * global.angularDrag;
+    Vector3 appliedAngularDrag = Vector3.Scale(totalAngularDrag, VectorUtil.Clamp01(Vector3.one - _counterAngularDrag.Absolute()));
+    shipRigidbody.AddTorque(appliedAngularDrag, ForceMode.Acceleration);
+    _counterAngularDrag = Vector3.zero;*/
+
+/*  // DRAG LOG
+    Debug.Log($"localVelocity: {localVelocity.ToString("F5")}    _counterDrag: {_counterDrag} localCounterDrag: {localCounterDrag.ToString("F5")}");
+    Debug.Log($"localScaledDrag: {localScaledDrag.ToString("F5")}    localCounteredDrag: {localCounteredDrag.ToString("F5")}");
+    Debug.Log($"APPLIED DRAG: {appliedDrag}");*/
+
+/* AUG 12, 2024
+/// <summary>
+        /// <para> Settings for clamping follow and orbit damping to prevent ship getting outside camera. </para>
+        /// <para> Using zero removes clpping by replacing all zero values to infinity. </para>
+        /// </summary>
+        [Serializable] public struct DampClamp
+        {
+            public Vector2 xMinMax;
+            public Vector2 yMinMax;
+            public Vector2 zMinMax;
+            
+            public DampClamp(float xMin, float xMax, float yMin, float yMax, float zMin, float zMax)
+            {
+                this.xMinMax = new Vector2(xMin, xMax);
+                this.yMinMax = new Vector2(yMin, yMax);
+                this.zMinMax = new Vector2(zMin, yMax);
+            }
+            
+            public DampClamp(Vector2 xMinMax, Vector2 yMinMax, Vector2 zMinMax)
+            {
+                this.xMinMax = xMinMax;
+                this.yMinMax = yMinMax;
+                this.zMinMax = zMinMax;
+            }
+            
+            public Vector3 ApplyDampClamp(Vector3 dampOffset)
+            {
+                dampOffset.x = Mathf.Clamp(dampOffset.x, xMinMax.x, xMinMax.y);
+                dampOffset.y = Mathf.Clamp(dampOffset.y, yMinMax.x, yMinMax.y);
+                dampOffset.z = Mathf.Clamp(dampOffset.z, zMinMax.x, zMinMax.y);
+                return dampOffset;
+            }
+            
+        }
+*/

@@ -1,0 +1,196 @@
+using System;
+using UnityEngine;
+
+public class ShipPhysics : MonoBehaviour
+{
+    // REFERENCES
+	[SerializeField] private ShipPhysicsConfig physicsConfig;
+	[SerializeField] private Rigidbody shipRigidbody;
+	[SerializeField] private Transform hoverSensors;
+    
+    // PHYSICS
+	[SerializeField] private HoverPhysics hoverPhysics;
+	[SerializeField] private ThrustPhysics thrustPhysics;
+	[SerializeField] private SteerPhysics steerPhysics;
+	
+    // PROPERTIES
+	public ShipInput ShipInput {private get; set;}
+	
+    // PRIVATE VARIABLES
+	private float _groundForward
+    private float _airbrakeDrag;
+    private float _airbrakeTorque;
+    private float _airbrakeDrift;
+    private float _boostAmount;
+	
+    // ENUMS
+    public enum HoverDirection {Track, Sensor, Global}
+    public enum GravityDirection {Track, Sensor, Global}
+    public enum GroundGripDirection {Track, Ship, Global}
+    public enum AirGripDirection {Track, Ship, Global}
+    public enum HoverPitchDirection {Track, Global}
+    public enum HoverRollDirection {Track, Global}
+    
+    
+    // MONOBEHAVIOUR METHODS
+    void Awake()
+    {
+        Initialize();
+        SetPhysicsConfig();
+    }
+	
+	void FixedUpdate()
+	{
+		UpdateShipPhysics();
+	}
+    
+    
+    // CLASS METHODS
+    private void Initialize()
+    {
+        // Set rigidbody
+        hoverPhysics.Rigidbody = shipRigidbody;
+        gravityPhysics.Rigidbody = shipRigidbody;
+        thrustPhysics.Rigidbody = shipRigidbody;
+        steerPhysics.Rigidbody = shipRigidbody;
+        gripPhysics.Rigidbody = shipRigidbody;
+        pitchPhysics.Rigidbody = shipRigidbody;
+        
+        // Set hover sensors
+        hoverPhysics.HoverSensors = hoverSensors;
+        gravityPhysics.HoverSensors = hoverSensors;
+    }
+    
+    private void SetPhysicsConfig()
+    {
+        hoverPhysics.Config = physicsConfig.hover;
+        gravityPhysics.Config = physicsConfig.gravity;
+        thrustPhysics.Config = physicsConfig.thrust;
+        steerPhysics.Config = physicsConfig.steer;
+        gripPhysics.Config = physicsConfig.grip;
+        airbrakePhysics.Config = physicsConfig.airbrake;
+        pitchPhysics.Config = physicsConfig.pitch;
+        rollPhysics.Config = physicsConfig.roll;
+    }
+    
+    private void UpdateShipPhysics()
+    {
+        // Stabilization
+        hoverPhysics.ApplyHover(out _groundForward);
+        gravityPhysics.ApplyGravity();
+        
+        pitchPhysics.ApplyPitch(shipInput.pitchInput, _groundForward);
+        rollPhysics.ApplyRoll(shipInput.rollInput);
+        
+        // Movement
+        airbrakePhysics.ApplyAirbrake(
+            shipInput.airbrakeLeftInput, shipInput.airbrakeRightInput,
+            out _airbrakeDrag, out _airbrakeTorque, out _airbrakeDrift);
+        boostPhysics.ApplyBoost(out _boostAmount);
+        
+        thrustPhysics.ApplyThrust(shipInput.thrustInput, _airbrakeDrag, _boostAmount);
+        steerPhysics.ApplySteer(shipInput.steerInput, _airbrakeTorque);
+        gripPhysics.ApplyGrip(_airbrakeDrift);
+        
+        jumpPhysics.ApplyJump(shipInput.jump);
+    }
+}
+
+
+public class HoverPhysics
+{
+	public float hoverRange;
+	public float hoverForce;
+	public float hoverDamp;
+    public HoverDirection hoverDirection;
+	
+	public Rigidbody Rigidbody {private get; set;}
+	public Transform[] HoverSensors {private get; set;}
+    public HoverConfig Config {set
+    {
+        hoverHeight = value.hoverHeight;
+        hoverForce = value.hoverForce;
+        hoverSuspension = value.hoverSuspension;
+        hoverDamping = value.hoverDamping;
+    }}
+	
+	public void ApplyHover(out Vector3 groundForward)
+	{
+		rigidbody.AddForce();
+	}
+}
+
+public class ThrustPhysics
+{
+    public float thrustSpeed;
+    public float thrustAccel;
+    public float thrustDeccel;
+    public float thrustAttack;
+    public float thrustRelease;
+    
+    private const float KphFactor = 3.6f;
+    private float thrustControl;
+    private float p_thrustControl;
+    
+    public void ApplyThrust(float thrustInput)
+    {
+        rigidbody.AddForce();
+    }
+}
+
+public class AirbrakePhysics
+{
+    public float drag;
+    public float torque;
+    public float drift;
+    
+    public void ApplyAirbrake(float airbrakeLeftInput, float airbrakeRightInput,
+        out float airbrakeDrag, out float airbrakeTorque, out float airbrakeDrift)
+    {
+        float dragInput = Mathf.Max(airbrakeLeftInput + airbrakeRightInput - 1, 0);
+        float torqueInput = airbrakeRightInput - airbrakeLeftInput
+        
+        airbrakeDrag = drag;
+        airbrakeTorque = torque;
+        airbrakeDrift = drift;
+    }
+}
+
+public class PitchPhysics
+{
+    public float hoverPitchAngle;
+    public float hoverPitchForce;
+    public float hoverPitchDamping;
+    public HoverPitchDirection hoverPitchDirection;  {Track, Global}
+    
+    public float freePitch;
+    public float flightPitchSpeed;
+    public float flightPitchAccel;
+    public float flightPitchDeccel;
+    public float flightPitchGain;
+    public float flightPitchRelease;
+    
+    private float pitchControl;
+    private float lastPitchControl;
+}
+
+public class RollPhysics
+{
+    public float hoverRollForce;
+    public float hoverRollDamping;
+    public HoverRollDirection hoverRollDirection;  {Track, Global}
+    
+    public float autoRoll;
+    public float autoRollForce;
+    public float autoRollDamping;
+    
+    public float freeRoll;
+    public float flightRollSpeed;
+    public float flightRollAccel;
+    public float flightRollDeccel;
+    public float flightRollGain;
+    public float flightRollRelease;
+    
+    private float rollControl;
+    private float lastRollControl;
+}

@@ -1,0 +1,634 @@
+// [SerializeField] List<ShipVector> shipVectors;
+    // [SerializeField] List<ShipInput> shipInputs;
+    
+    [SerializeField] GameObject track;
+    
+    
+    
+    private void Start()
+    {
+        // if (ships.Count != 0)
+        // foreach (ShipSystem ship in ships)
+        // {
+        //     shipVectors.Add(ship.ShipVector);
+        // }
+    }
+    
+    private void Update()
+    {
+        // List<ShipInput> newShipInputs = new List<ShipInput>();
+        // foreach (ShipSystem ship in ships)
+        // {
+        //     newShipInputs.Add(ship.ShipInput);
+        // }
+        
+        // shipInputs = newShipInputs;
+    }
+
+
+
+
+
+
+
+
+
+
+
+// Convert degree range from 0 to 360 to -180 to 180, to avoid revolving flicker
+// for (int i = 0; i < 3; i++) if (nextOrbitDampOffset[i] > 180) nextOrbitDampOffset[i] -= 360;
+/* FORMULA
+        lastRotation = rotation;
+        rotation = view.target.rotation;
+        
+        deltaRotation = (rotation * Quaternion.Inverse(lastRotation)).eulerAngles;
+        for (int i = 0; i < 3; i++) deltaRotation[i] = Mathf.DeltaAngle(0, deltaRotation[i]);
+        localDeltaRotation = view.target.InverseTransformDirection(deltaRotation); */
+
+
+
+private Quaternion rotation = Quaternion.identity;
+    private Quaternion lastRotation = Quaternion.identity;
+    [SerializeField] private Vector3 deltaRotation;
+    [SerializeField] private Vector3 localDeltaRotation;
+    [SerializeField] private Vector3 localRbAngularVelocity;
+    
+    private void UpdateOrbitDamping(CameraView view)
+    {
+        // Store previously calculated nextOrbitDampOffset to be used in interpolation
+        if (hasStarted) lastOrbitDampOffset = nextOrbitDampOffset;
+        
+        
+        
+        lastRotation = rotation;
+        rotation = view.target.rotation;
+        
+        deltaRotation = (rotation * Quaternion.Inverse(lastRotation)).eulerAngles;
+        for (int i = 0; i < 3; i++) deltaRotation[i] = Mathf.DeltaAngle(0, deltaRotation[i]);
+        localDeltaRotation = view.target.InverseTransformDirection(deltaRotation);
+        
+        Debug.Log("Delta Rotation: " + deltaRotation);
+        Debug.Log("Local Delta Rotation: " + localDeltaRotation);
+        
+        Vector3 shipRbAngularVelocity = shipRigidbody.angularVelocity * Mathf.Rad2Deg * Time.fixedDeltaTime;
+        localRbAngularVelocity = view.target.InverseTransformDirection(shipRbAngularVelocity);
+        Debug.Log("Local Rb Velocity: " + localRbAngularVelocity);
+
+
+
+
+
+
+
+localDeltaRotation = view.target.InverseTransformDirection(deltaRotation);
+
+// THIS IS EQUIVALENT TO INVERSE TRANSFORM DIRECTION
+Vector3[] shipAxis = {view.target.right, view.target.up, view.target.forward};
+for (int i = 0; i < 3; i++) localDeltaRotation[i] = Vector3.Dot(deltaRotation, shipAxis[i]);
+
+
+
+
+
+
+// deltaRotation = (rotation * Quaternion.Inverse(lastRotation)).eulerAngles;
+// deltaRotation = new Vector3(
+//     Mathf.DeltaAngle(0, deltaRotation.x),
+//     Mathf.DeltaAngle(0, deltaRotation.y),
+//     Mathf.DeltaAngle(0, deltaRotation.z));
+// localDeltaRotation = new Vector3(
+//     Vector3.Dot(deltaRotation, view.target.right),
+//     Vector3.Dot(deltaRotation, view.target.up),
+//     Vector3.Dot(deltaRotation, view.target.forward));
+
+
+
+
+
+
+
+
+
+
+/* NEXT:
+        
+        // followPositionOffset = cameraView.follow.InverseTransformDirection(followPositionDamp - cameraView.follow.position);
+        
+        
+        // targetOffset = new Vector3(
+        //     Vector3.Dot(targetVelocityLerp, view.target.right),
+        //     Vector3.Dot(targetVelocityLerp, view.target.up),
+        //     Vector3.Dot(targetVelocityLerp, view.target.forward));
+        // currentOffset = new Vector3(
+        //     Mathf.SmoothDamp(currentOffset.x, -targetOffset.x, ref offsetDampVelocity.x, offsetSmooth.x),
+        //     Mathf.SmoothDamp(currentOffset.y, -targetOffset.y, ref offsetDampVelocity.y, offsetSmooth.y),
+        //     Mathf.SmoothDamp(currentOffset.z, -targetOffset.z, ref offsetDampVelocity.z, offsetSmooth.z));
+        // Vector3 appliedOffsetDamp = Vector3.Scale(offsetDamp, enableSideOffset ? currentOffset : currentOffset * 0.0625f);
+        
+        FORMULA:
+        currentShipPosition = lerp(currentShipPosition, targetShipPosition)
+        dampOffset = targetShipPosition - curretShipPosition
+        targetCameraPosition = targetShipPosition + cameraOffset + dampOffset
+        
+        // cameraTransform.position = cameraView.follow.position + cameraView.offset + followPositionOffsetLerp;
+        */
+
+
+
+
+
+private void UpdateFollowDamping(CameraView view)
+    {
+        // Store the last followPositionOffset to be used in interpolation
+        if (hasStarted) lastFollowPositionOffset = followPositionOffset;
+        
+        // Convert damped ship position point to local coordinates relative to ship direction
+        followLocalPositionDamp = view.target.InverseTransformPoint(followPositionDamp);
+        // Apply smoothing in three axis relative to ship direction
+        followLocalPositionDamp = new Vector3(
+            Mathf.SmoothDamp(followLocalPositionDamp.x, 0.0f, ref followPosDampVelocity.x, followDamping.damp.x),
+            Mathf.SmoothDamp(followLocalPositionDamp.y, 0.0f, ref followPosDampVelocity.y, followDamping.damp.y),
+            Mathf.SmoothDamp(followLocalPositionDamp.z, 0.0f, ref followPosDampVelocity.z, followDamping.damp.z));
+        // Convert damped ship position back to world coordinates
+        followPositionDamp = view.target.TransformPoint(followLocalPositionDamp);
+        
+        // Get the offset between the ship position and damped ship position, in world direction
+        followPositionOffset = followPositionDamp - view.target.position;
+        
+        // Filter the offset when the ship is not locked to ground. Vector3.Dot converts the offset to local direction
+        bool isLockedToGround = shipPhysics.IsOnGround && shipPhysics.LockToGround;
+        followPositionOffset = new Vector3(
+            Vector3.Dot(followPositionOffset, isLockedToGround ? view.target.right :
+                Vector3.Scale(view.target.right, new Vector3(1, 0, 1))),
+            Vector3.Dot(followPositionOffset, isLockedToGround ? view.target.up :
+                Vector3.Scale(view.target.up, new Vector3(0, 1, 0))),
+            Vector3.Dot(followPositionOffset, view.target.forward));
+        
+        // Convert the offset local coordinates, and scale the offset
+        followPositionOffset = Vector3.Scale(followPositionOffset, followDamping.scale);
+        if (!hasStarted) hasStarted = true;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Debug.Log("----- START -----");
+        // Store the last followPositionOffset to be used in interpolation
+        Debug.Log("lastFollowPositionOffset: " + lastFollowPositionOffset);
+        if (hasStarted) lastFollowPositionOffset = followPositionOffset;
+        Debug.Log("followPositionOffset: " + followPositionOffset);
+        
+        // Convert damped ship position point to local coordinates relative to ship direction
+        followLocalPositionDamp = cameraView.follow.InverseTransformPoint(followPositionDamp);
+        Debug.Log("Convert to local axis: followLocalPositionDamp: " + followLocalPositionDamp);
+        
+        // Apply smoothing in three axis relative to ship direction
+        followLocalPositionDamp = new Vector3(
+            Mathf.SmoothDamp(followLocalPositionDamp.x, 0.0f, ref followPosDampVelocity.x, followSmooth.x),
+            Mathf.SmoothDamp(followLocalPositionDamp.y, 0.0f, ref followPosDampVelocity.y, followSmooth.y),
+            Mathf.SmoothDamp(followLocalPositionDamp.z, 0.0f, ref followPosDampVelocity.z, followSmooth.z));
+        Debug.Log("After smoothing applied: followLocalPositionDamp: " + followLocalPositionDamp);
+        
+        // Convert damped ship position back to world coordinates
+        followPositionDamp = cameraView.follow.TransformPoint(followLocalPositionDamp);
+        Debug.Log("Convert back to global axis followPositionDamp: " + followPositionDamp);
+        
+        // Get the offset between the ship position and damped ship position, relative to ship direction
+        followPositionOffset = cameraView.follow.InverseTransformDirection(followPositionDamp - cameraView.follow.position);
+        Debug.Log("followPositionOffset: " + followPositionOffset);
+        
+        Debug.Log("----- EXIT -----");
+        
+        hasStarted = true;
+
+
+
+
+
+// // Calculate camera offset, pivot and rotation
+        // Vector3 offsetToPivot = cameraView.follow.rotation * Vector3.forward * cameraView.pivotDistance;
+        // pivotTransform.position = cameraView.follow.TransformPoint(cameraView.offset + followPositionOffsetLerp + extraOffset) + offsetToPivot;
+        // pivotTransform.rotation = cameraView.follow.rotation * Quaternion.Euler(extraOrbit);
+        
+        // // Apply camera offset, pivot and rotation
+        // cameraPosition = pivotTransform.TransformPoint(Vector3.forward * -cameraView.pivotDistance);
+        // cameraRotation = pivotTransform.rotation * Quaternion.Euler(cameraView.rotation + extraRotation);
+        // cameraTransform.SetPositionAndRotation(cameraPosition, cameraRotation);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+private void UpdateFollowDamping(CameraView cameraView)
+    {
+        lastFollowPositionOffset = followPositionOffset;
+        followPosition = cameraView.follow.position;
+        // followPositionDamp = Vector3.SmoothDamp(followPositionDamp, followPosition, ref followPosDampVelocity, followDamp.z);
+        Vector3 followPositionDampLocalized = cameraView.follow.InverseTransformPoint(followPositionDamp);
+        Debug.Log("followPositionDamp Localized: " + followPositionDampLocalized);
+        
+        followPositionDamp = new Vector3(
+            Mathf.SmoothDamp(followPositionDampLocalized.x, 0.0f, ref followPosDampVelocity.x, followDamp.x),
+            Mathf.SmoothDamp(followPositionDampLocalized.y, 0.0f, ref followPosDampVelocity.y, followDamp.y),
+            Mathf.SmoothDamp(followPositionDampLocalized.z, 0.0f, ref followPosDampVelocity.z, followDamp.z));
+        
+        Debug.Log("followPositionDamp after smooth damp: " + followPositionDamp);
+        followPositionDamp = cameraView.follow.TransformPoint(followPositionDamp);
+        Debug.Log("followPositionDamp Global Position: " + followPositionDamp);
+        followPositionOffset = cameraView.follow.InverseTransformDirection(followPositionDamp - followPosition);
+        Debug.Log("followPositionOffset: " + followPositionOffset);
+        
+        // Debug.Log("Offset: " + followPositionDamp + " Local Offset: " + cameraView.follow.InverseTransformPoint(followPositionDamp));
+        // Debug.Log("Back to Global Offset: " + cameraView.follow.TransformPoint(cameraView.follow.InverseTransformPoint(followPositionDamp)));
+        
+        
+    }
+
+
+
+
+
+
+
+        followPositionDamp2 = cameraView.follow.InverseTransformPoint(followPositionDamp2);
+        followPositionDamp2 = new Vector3(
+            Mathf.SmoothDamp(followPositionDamp2.x, followPosition.x, ref followPosDampVelocity2.x, followDamp.x),
+            Mathf.SmoothDamp(followPositionDamp2.y, followPosition.y, ref followPosDampVelocity2.y, followDamp.y),
+            Mathf.SmoothDamp(followPositionDamp2.z, followPosition.z, ref followPosDampVelocity2.z, followDamp.z));
+        followPosDampVelocity2 = cameraView.follow.TransformPoint(followPosDampVelocity2);
+
+
+// Debug.Log("Ship Position: " + followPosition + " Ship Local Position: " + cameraView.follow.InverseTransformPoint(cameraView.follow.position));
+        // Debug.Log("Damp Position: " + followPositionDamp + " Damp Local Position: " + cameraView.follow.InverseTransformPoint(followPositionDamp));
+        // Debug.Log("Retransformed Damp Position: " + followPositionDamp2 + " Retransformed Offset: " + (cameraView.follow.TransformPoint(followPositionDamp2) - followPosition));
+        
+        
+        // Divide in three axis
+        // followPositionDamp[0] = Vector3.SmoothDamp(followPositionDamp, followPosition, ref followPosDampVelocity, followDamp);
+        
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Transform targetObject
+
+Quaternion targetRotation
+Quaternion nextTargetRotation
+Quaternion deltaRotation
+Quaternion nextDeltaRotation
+
+Quaternion lerpedDeltaRotation
+
+void FixedUpdate()
+{
+    targetRotation = nextTargetRotation
+    nextTargetRotation = targetObject.rotation
+    
+    deltaRotation = nextDeltaRotation
+    nextDeltaRotation = nextTargetRotation * Quaternion.Inverse(targetRotation)
+}
+
+void LateUpdate()
+{
+    float Repeat(double t, double length) => (float) Math.Clamp(t - Math.Floor(t / length) * length, 0.0, length) / length;
+    fixedUpdateLapse = Repeat(Time.timeAsDouble, Time.fixedDeltaTime);
+    
+    lerpedDeltaRotation = Quaternion.Lerp(deltaRotation, nextDeltaRotation, fixedUpdateLapse)
+    
+    /*--------------------------------------------------*/
+    
+    lerpedDeltaRotation
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+        
+        
+        /* targetOrbit = targetAngularVelocityLerp;
+        // for (int i = 0; i < 3; i++) if (targetOrbit[i] > 180) targetOrbit[i] -= 360;
+        
+        // currentOrbit.x = Mathf.MoveTowards(currentOffset.x, targetOrbit.x, Time.deltaTime / orbitSmooth.x);
+        // currentOrbit.y = Mathf.MoveTowards(currentOffset.y, targetOrbit.y, Time.deltaTime / orbitSmooth.y);
+        // currentOrbit.z = Mathf.MoveTowards(currentOffset.z, targetOrbit.z, Time.deltaTime / orbitSmooth.z);
+        
+        // Vector3 appliedOrbitDamp = Vector3.Scale(orbitDamp, enableSideOffset ? currentOrbit : Vector3.zero);*/
+        
+
+
+
+private void UpdateTargetVelocity(CameraView view)
+    {
+        // Calculate target object's (Fixed Update Based) velocity & angular velocity
+        p_targetVelocity = targetVelocity;
+        targetVelocity = (view.target.position - p_targetPosition) / Time.fixedDeltaTime;
+        p_targetPosition = view.target.position;
+        
+        // Calculate target object's angular velocity
+        // if (hasStarted)
+        p_targetAngularVelocity = targetAngularVelocity;
+        targetAngularVelocity = (view.target.rotation * Quaternion.Inverse(p_targetRotation)).eulerAngles;
+        p_targetRotation = view.target.rotation;
+        // if (!hasStarted) hasStarted = true;
+        
+        // p_targetAngularVelocity = targetAngularVelocity;
+        // targetAngularVelocity = (Quaternion.Inverse(pivotTransform.rotation) * view.target.rotation).eulerAngles;
+        // p_targetAngularVelocity = targetAngularVelocity;
+        
+        // p_targetAngularVelocity = targetAngularVelocity;
+        // targetAngularVelocity = (view.target.rotation * Quaternion.Inverse(p_targetAngularVelocity)).normalized;
+        // p_targetAngularVelocity = targetAngularVelocity;
+        // for (int i = 0; i < 3; i++) if (targetAngularVelocity[i] > 180) targetAngularVelocity[i] -= 360;
+    }
+
+
+
+
+
+
+
+
+
+
+// Calculate smooth pivot orbiting rotation
+// Calculate difference between pivot rotation and ship rotation
+pivotRotDisplacement = (Quaternion.Inverse(pivotTransform.rotation) * view.target.rotation).eulerAngles;
+
+// For x, y & z
+for (int i = 0; i < 3; i++)
+{
+    // Make 0 to 360 into -180 to 180
+    if (pivotRotDisplacement[i] > 180) pivotRotDisplacement[i] -= 360;
+    // Resize the displacement
+    pivotRotDisplacement[i] = Mathf.MoveTowards(pivotRotDisplacement[i], 0.0f, Time.deltaTime / orbitLagSpeed[i]);
+}
+
+
+
+
+    [Range(-10, 10)] public float sideSteerOffset;
+    [Range(0, 10)] public float sideOffsetSmooth;
+
+// Side offset
+        // Calculate side velocity
+        targetSideVelocity = Vector3.Dot(targetVelocityLerp,
+            (shipPhysics.IsOnGround && shipPhysics.LockToGround) ? view.target.right :
+            Vector3.Scale(view.target.right, new Vector3(1, 0, 1)));
+            
+        targetSideOffset = -targetSideVelocity;
+        currentSideOffset = Mathf.SmoothDamp(currentSideOffset, targetSideOffset, ref sideOffsetVelocity, sideOffsetSmooth);
+        sideOffset = enableSideOffset? new Vector3(sideSteerOffset * currentSideOffset, 0, 0) : Vector3.zero;
+
+
+
+
+        
+        private float HoverSensitivity(float hoverHit_Percent)
+        {   // Custom Curve Formula: (This method is used to avoid hitting ground too much)
+            return // outputVal = startOutputVal + (rate * (inputVal - startInputVal))
+                hoverHit_Percent >= 0.75f ? 1f + (4 * (hoverHit_Percent - 0.75f)) :
+                hoverHit_Percent >= 0.5f ? 0.5f + (2 * (hoverHit_Percent - 0.5f)) :
+                hoverHit_Percent;
+        }
+
+
+
+
+
+
+
+private void UpdateInterpolation(CameraView view)
+    {
+        Time.timeScale = timeScale;
+        
+        // Align LateUpdate() smoothing to FixedUpdate() based target velocity
+        // WARNING: Time.time precision begin to lose after 4 - 9 hours of game. This can cause major camera bugs.
+        
+        
+        
+        fixedUpdateLapse = Mathf.Repeat(Time.time, Time.fixedDeltaTime) / Time.fixedDeltaTime;
+        targetVelocityLerp = Vector3.Lerp(p_targetVelocity, targetVelocity, fixedUpdateLapse);
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+// Calculate target object's (Fixed Update Based) velocity & angular velocity
+        Debug.Log("Before Line 1: Previous Target Velocity: " + p_targetVelocity + " Target Velocity: " + targetVelocity);
+        p_targetVelocity = targetVelocity;
+        Debug.Log("Before Line 2: Previous Target Velocity: " + p_targetVelocity + " Target Velocity: " + targetVelocity);
+        targetVelocity = (view.target.position - p_targetPosition) / Time.fixedDeltaTime;
+        Debug.Log("Before Line 3: Previous Target Velocity: " + p_targetVelocity + " Target Velocity: " + targetVelocity);
+        Debug.Log("Target Position: " + view.target.position + " Previous Target Position: " + p_targetPosition);
+        p_targetPosition = view.target.position;
+
+
+
+
+// BACKUP
+class Camera {
+    // Time it passed in LateUpdate() since the last FixedUpdate() is called
+        [SerializeField] private float fixedUpdateLapse;
+        // [SerializeField] private float fixedUpdateLapseCorrected;
+        [SerializeField] [Range(0, 1)] private float fixedUpdateLapsePercent;
+        [SerializeField] private float fixedUpdateLapseError;
+        [SerializeField] private int interpolationOverflows;
+        [SerializeField] private int interpolationUnderflows;
+        [SerializeField] private float maxOverflow;
+        [SerializeField] private float maxUnderflow;
+
+
+    private void FixedUpdate()
+    {
+        if (!UpdateInEditor) return;
+        
+        // Calculate lapse error (interval between last LateUpdate() call and this FixedUpdate() call)
+        // fixedUpdateLapseError = fixedUpdateLapse - Time.fixedDeltaTime;
+        
+        // Reset interval
+        fixedUpdateLapse -= Time.fixedDeltaTime;
+        fixedUpdateLapseError = fixedUpdateLapse;
+        
+        if (fixedUpdateLapse < -0.01) fixedUpdateLapse = 0;
+        if (fixedUpdateLapse > Time.fixedDeltaTime + 0.01) fixedUpdateLapse = 0;
+        
+        // Calculate target object's (Fixed Update Based) velocity & angular velocity
+        p_targetVelocity = targetVelocity;
+        targetVelocity = (currentViewMode.target.position - p_targetPosition) / Time.fixedDeltaTime;
+        
+        p_targetPosition = currentViewMode.target.position;
+    }
+        
+    private void UpdateTargetVelocity(CameraView view)
+    {
+        runtime = Time.time;
+        if (UnityEditor.EditorApplication.isPlaying) Time.timeScale = timeScale;
+        
+        // Time it passed in LateUpdate() since the last FixedUpdate() is called
+        fixedUpdateLapse += Time.deltaTime;
+        
+        // fixedUpdateLapseCorrected = fixedUpdateLapse - fixedUpdateLapseError;
+        // fixedUpdateLapsePercent = Mathf.Repeat(fixedUpdateLapse - fixedUpdateLapseError, Time.fixedDeltaTime) / Time.fixedDeltaTime;
+        fixedUpdateLapsePercent = Mathf.Repeat(Time.time, Time.fixedDeltaTime) / Time.fixedDeltaTime;
+        interpolatedTargetVelocity = Vector3.Lerp(p_targetVelocity, targetVelocity, fixedUpdateLapsePercent);
+        
+        
+        
+        // Calculate side velocity
+        Vector3 used = (isLateUpdate) ? interpolatedTargetVelocity : targetVelocity;
+        targetSideVelocity = Vector3.Dot(used,
+            (shipPhysics.IsOnGround && shipPhysics.LockToGround) ? view.target.right :
+            Vector3.Scale(view.target.right, new Vector3(1, 0, 1)));
+    }
+}
+    
+    
+
+
+
+
+
+
+
+
+        if (fixedUpdateLapse > Time.fixedDeltaTime)
+        {
+            print("Interpolation Overflow");
+            interpolationOverflows ++;
+            if (fixedUpdateLapse > maxOverflow)
+                maxOverflow = fixedUpdateLapse;
+        }
+        if (fixedUpdateLapse < 0f)
+        {
+            interpolationUnderflows ++;
+            print("Interpolation UNderflow");
+            if (fixedUpdateLapse < maxUnderflow)
+                maxUnderflow = fixedUpdateLapse;
+        }
+
+
+
+
+
+
+private void UpdateTargetVelocity(CameraView view)
+    {
+        // p_targetVelocityUpdate = targetVelocity;
+        // bool hasFixedUpdated = p_targetVelocityFixedUpdate != p_targetVelocityUpdate;
+        
+        intervalFixedUpdate += Time.deltaTime;
+        print("Late Update()");
+        
+        interpolatedTargetVelocity = Vector3.Lerp(targetVelocity, p_targetVelocityFixedUpdate, intervalFixedUpdate / Time.fixedDeltaTime);
+        
+        // for (int i = 0; i < 3; i++)
+        //     interpolatedTargetVelocity[i] = Mathf.Lerp(targetVelocity[i], p_targetVelocityFixedUpdate[i], intervalFixedUpdate);
+        
+        
+        // for (int i = 0; i < 3; i++)
+            // interpolatedTargetVelocity[i] += p_targetAccel[i] * Time.deltaTime;
+            // interpolatedTargetVelocity[i] = Mathf.MoveTowards(interpolatedTargetVelocity[i], targetVelocity[i], Mathf.Abs(p_targetAccel[i]) * Time.deltaTime);
+        
+        // Just show a bunch of value for previous 20 frames
+        ps_targetVelocity[0] = targetVelocity;
+        for (int i = ps_targetVelocity.Length - 1; i > 0; i--) ps_targetVelocity[i] = ps_targetVelocity[i - 1];
+        
+        // Vector3 totalVelocity = Vector3.zero;
+        // for (int i = 0; i < ps_targetVelocity.Length; i++) totalVelocity += ps_targetVelocity[i];
+        // ave_targetVelocity = totalVelocity;
+        
+        // Calculate side velocity
+        targetSideVelocity = Vector3.Dot(ave_targetVelocity,
+            (shipPhysics.IsOnGround && shipPhysics.LockToGround) ? view.target.right :
+            Vector3.Scale(view.target.right, new Vector3(1, 0, 1)));
+    }
+
+
+
+
+
+
+
+private void UpdateFollowCamera(CameraView view, bool enableSideOffset)
+{
+    // Side offset
+    targetSideOffset = -shipPhysics.SideSpeedMPS;
+    currentSideOffset = Mathf.SmoothDamp(currentSideOffset, targetSideOffset, ref sideOffsetVelocity, sideOffsetSmooth);
+    sideOffset = enableSideOffset? new Vector3(sideSteerOffset * currentSideOffset, 0, 0) : Vector3.zero;
+    
+    
+    
+    // Calculate camera offset, pivot and rotation
+    offsetToPivot = view.target.rotation * Vector3.forward * view.pivotDistance;
+    pivotTransform.position = view.target.TransformPoint(view.offset + sideOffset + extraOffset) + offsetToPivot;
+    pivotTransform.rotation = view.target.rotation * Quaternion.Euler(extraPivotRotation);
+    
+    // Apply camera offset, pivot and rotation
+    targetCamPosition = pivotTransform.TransformPoint(Vector3.forward * -view.pivotDistance);
+    targetCamRotation = pivotTransform.rotation * Quaternion.Euler(view.rotation + extraRotation);
+    cameraTransform.SetPositionAndRotation(targetCamPosition, targetCamRotation);
+}
+
+
+
+// targetRotation = view.target.rotation.eulerAngles;
+// Loop on 3 vectors
+// for (int i = 0; i < 3; i++)
+// {
+//     targetRotation[i] = targetRotation[i] > 180 ? targetRotation[i] - 360 : targetRotation[i];
+//     smoothTargetRotation[i] = Mathf.MoveTowards(smoothTargetRotation[i], targetRotation[i], Time.deltaTime / orbitLagSpeed[i]);
+// }
+
+// angle %=360;
+// angle= angle>180 ? angle-360 : angle;
+
+// pivotTransform.rotation = Mathf.MoveTowards(pivotTransform.rotation, view.target.rotation, Time.deltaTime / orbitLagSpeed)

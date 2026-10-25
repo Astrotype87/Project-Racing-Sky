@@ -1,0 +1,23 @@
+--------------------------------------------------
+INPUT STRUCTURE
+--------------------------------------------------
+
+Game Manager [GameManager]
+    Input Manager [InputManager]
+        UI Input [UIInputManager]
+            Event System [EventSystem, InputSystemUIInputModule]
+        Race Input [RaceInputManager, KeyboardInputHandler, GamepadInputHandler, TouchInputHandler]
+        Editor Input [EditorInputManager]
+
+
+--------------------------------------------------
+Input Code Architecture
+--------------------------------------------------
+GameManager
+    InputManager
+        UIInputManager
+        RaceInputManager
+            KeyboardInputHandler
+            GamepadInputHandler
+            TouchInputHandler
+        EditorInputManager

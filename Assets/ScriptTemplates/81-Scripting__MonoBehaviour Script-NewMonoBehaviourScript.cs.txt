@@ -1,0 +1,32 @@
+using UnityEngine;
+
+    #ROOTNAMESPACEBEGIN#
+public class #SCRIPTNAME# : MonoBehaviour
+{
+    // INSPECTOR FIELDS
+        #NOTRIM#
+        #NOTRIM#
+    // PRIVATE FIELDS
+        #NOTRIM#
+        #NOTRIM#
+    // MONOBEHAVIOUR METHODS
+    private void Start()
+    {
+            #NOTRIM#
+    }
+        #NOTRIM#
+    private void Update()
+    {
+            #NOTRIM#
+    }
+        #NOTRIM#
+    // PUBLIC METHODS
+        #NOTRIM#
+        #NOTRIM#
+        #NOTRIM#
+    // PRIVATE METHODS
+        #NOTRIM#
+        #NOTRIM#
+        #NOTRIM#
+}
+#ROOTNAMESPACEEND#

@@ -1,0 +1,18 @@
+{
+    "name": "AstrotypeLibrary.Oscillator.Editor",
+    "rootNamespace": "AstrotypeLibrary.Oscillator.Editor",
+    "references": [
+        "GUID:77082163bc33cc64e89fe30ef1e46e04"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

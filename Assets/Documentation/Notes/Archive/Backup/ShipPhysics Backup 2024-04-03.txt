@@ -1,0 +1,643 @@
+using System.Collections;
+using UnityEngine;
+
+// A clean, complete ship physics code
+// One class for physics and one class with nested structs for physics settings
+public class ShipPhysics : MonoBehaviour
+{
+    // INSPECTOR FIELDS
+    [SerializeField] private Rigidbody shipRigidbody;
+    [SerializeField] private LayerMask groundLayer;
+    [SerializeField] private Transform[] hoverSensors;
+    
+    [Header("Physics")]
+    [SerializeField] private PhysicsConfig.Hover hover;
+    [SerializeField] private PhysicsConfig.Gravity gravity;
+    [SerializeField] private PhysicsConfig.Pitch pitch;
+    [SerializeField] private PhysicsConfig.Roll roll;
+    [SerializeField] private PhysicsConfig.Thrust thrust;
+    [SerializeField] private PhysicsConfig.Steer steer;
+    [SerializeField] private PhysicsConfig.Grip grip;
+    [SerializeField] private PhysicsConfig.Airbrake airbrake;
+    [SerializeField] private PhysicsConfig.Strafe strafe;
+    [SerializeField] private PhysicsConfig.Sideshift sideshift;
+    [SerializeField] private PhysicsConfig.Boost boost;
+    [SerializeField] private PhysicsConfig.Jump jump;
+    [SerializeField] private PhysicsConfig.Orient orient;
+    
+    [Header("States")]
+    [SerializeField] private bool canLockToGround;
+    
+    [Header("Control")]
+    [SerializeField] [Range(0, 1)] private float[] hoverPressure;
+    [SerializeField] [Range(0, 1)] private float thrustControl;
+    [SerializeField] [Range(0, 1)] private float reverseControl;
+    [SerializeField] [Range(-1, 1)] private float steerControl;
+    [SerializeField] [Range(0, 100)] private float gripControl;
+    [SerializeField] [Range(0, 1)] private float abDragControl;
+    [SerializeField] [Range(-1, 1)] private float abTorqueControl;
+    [SerializeField] [Range(0, 1)] private float abDriftControl;
+    [SerializeField] [Range(-1, 1)] private float strafeControl;
+    [SerializeField] [Range(-1, 1)] private float sideshiftControl;
+    [SerializeField] [Range(-1, 1)] private float pitchControl;
+    [SerializeField] [Range(-1, 1)] private float rollControl;
+    [SerializeField] [Range(0, 1)] private float boostControl;
+    // [SerializeField] [Range(-1, 1)] private float speedPadControl;    // PRIVATE EVENT BASED PHYSICS
+    // [SerializeField] [Range(-1, 1)] private float speedZoneControl;
+    
+    
+    // PROPERTIES
+    public InputData InputData          {get; set;} = new InputData();
+    public MechanicData MechanicData    {get; set;} = new MechanicData();
+    public StateData StateData          {get; set;} = new StateData();
+    
+    // GETTERS
+    public Vector3 ShipPosition => shipRigidbody.position;  // ONLY ShipDebug script uses ALL THESE 5 GETTERS
+    public Transform[] HoverSensors => hoverSensors;        // Consider moving them to new class PhysicsData INSTEAD
+    public LayerMask GroundLayer => groundLayer;            
+    public PhysicsConfig.Hover HoverConfig => hover;
+    public float HoverRange => _hoverRange;
+    
+    public bool IsOnGround => _isOnGround;              // TO BE REMOVED
+    public bool IsLockToGround => canLockToGround;      // TO BE REMOVED
+    
+    // SETTERS
+    public void SetPhysicsConfig(PhysicsConfig config) => AssignPhysicsConfig(config);
+    
+    
+    // PRIVATE GETTERS
+    private float _hoverRange => hover.height + hover.falloff;
+    private bool _isOnGround => StateData.isOnGround;
+    
+    // PRIVATE FIELDS
+    private int _hoverCount;
+    private int _hoverHitCount;
+    private float _hoverHitRatio;
+    // private float _hoverHitPressure; // <- NEW VARIABLE
+    private bool[] _isHoverHit;
+    private Vector3[] _lastHoverPosition;
+    private Vector3[] _hoverSensorTip;
+    private Vector3[] _hoverNormal;
+    
+    [SerializeField] private Vector3 _kinematicVelocity;
+    [SerializeField] private float _sideshiftVelocity;
+    [SerializeField] private float _sideshiftInput;
+    [SerializeField] private bool _isSideshifting;
+    [SerializeField] private bool _canJump;
+    
+    // PRIVATE CONSTANTS
+    private const float KPHFactor = 3.6f;
+    private const float DecelBaseKPH = 1000;
+    private const float DecelBaseMPS = 10;
+    private const float DecelBaseDPS = 90;
+    
+    
+    
+    // CONSTRUCTOR & FINALIZER
+    public ShipPhysics()
+    {
+        SetPhysicsConfig(PhysicsConfig.GetDefaultSetings());
+    }
+    
+    
+    // MONOBEHAVIOUR METHODS
+    private void Awake()
+    {
+        InitializePhysics();
+    }
+    
+    private void Start()
+    {
+        RegisterEvents();
+    }
+    
+    private void FixedUpdate()
+    {
+        UpdatePhysics();
+    }
+    
+    private void OnCollisionEnter(Collision other)
+    {
+        _kinematicVelocity += other.impulse;
+        _sideshiftVelocity += Vector3.Dot(other.impulse, transform.right);
+    }
+    
+    private void OnCollisionStay(Collision other)
+    {
+        _kinematicVelocity += other.impulse;
+        _sideshiftVelocity += Vector3.Dot(other.impulse, transform.right);
+    }
+    
+    
+    // PUBLIC METHODS
+    public void AssignPhysicsConfig(PhysicsConfig config)
+    {
+        hover = config.hover;
+        gravity = config.gravity;
+        pitch = config.pitch;
+        roll = config.roll;
+        thrust = config.thrust;
+        steer = config.steer;
+        grip = config.grip;
+        airbrake = config.airbrake;
+        strafe = config.strafe;
+        boost = config.boost;
+        jump = config.jump;
+        orient = config.orient;
+    }
+    
+    public void InitializePhysics()
+    {
+        _hoverCount = hoverSensors.Length;
+        
+        _isHoverHit = new bool[_hoverCount];
+        _lastHoverPosition = new Vector3[_hoverCount];
+        _hoverSensorTip = new Vector3[_hoverCount];
+        _hoverNormal = new Vector3[_hoverCount];
+        
+        hoverPressure = new float[_hoverCount];
+        
+        _canJump = true;
+    }
+    
+    public void RegisterEvents()
+    {
+        InputData.OnSideshift += (value) => StartCoroutine(OnSideshift(value));
+        InputData.OnJump += () => StartCoroutine(OnJump());
+        InputData.OnRespawn += () => OnRespawn();
+        
+        MechanicData.OnSpeedPadHit += (value) => OnSpeedPadHit(value);
+        MechanicData.OnSpeedZoneEnter += (value) => OnSpeedZoneEnter(value);
+        MechanicData.OnSpeedZoneExit += (value) => OnSpeedZoneExit(value);
+        
+        MechanicData.OnShipDamage += (value) => OnShipDamage(value);
+        MechanicData.OnShipDestroy += () => OnShipDestroy();
+    }
+    
+    
+    // FIXED UPDATE BASED PHYSICS METHODS
+    private void UpdatePhysics()
+    {
+        UpdateState();
+        
+        ApplyHover();
+        ApplyGravity();
+        
+        ApplyPitch(InputData.pitchInput);
+        ApplyRoll(InputData.rollInput);
+        ApplyOrient();
+        
+        ApplyAirbrake(InputData.airbrakeLeftInput, InputData.airbrakeRightInput);
+        ApplyThrust(InputData.thrustInput, InputData.reverseInput, InputData.boostInput);
+        ApplySteer(InputData.steerInput);
+        
+        ApplyGrip();
+        ApplyStrafe(InputData.strafeInput);
+        ApplySideshift(_sideshiftInput);
+    }
+    
+    private void UpdateState()
+    {
+        StateData.isOnGround = _hoverHitCount > 0;
+        StateData.canLockToGround = canLockToGround;
+    }
+    
+    private void ApplyHover() // SAME
+    {
+        _hoverHitCount = 0;
+        _hoverHitRatio = 0;
+        
+        for (int i = 0; i < _hoverCount; i++)
+        {
+            if (!hoverSensors[i]) continue;
+            Vector3 hoverPosition = hoverSensors[i].position;
+            Vector3 hoverDirection = hover.direction == PhysicsConfig.Direction.World ? Vector3.down : -hoverSensors[i].up;
+            
+            if (hover.direction == PhysicsConfig.Direction.Ground)
+                if (Physics.Raycast(hoverPosition, hoverDirection, out RaycastHit sensorHit, _hoverRange, groundLayer))
+                    hoverDirection = -sensorHit.normal;
+            
+            if (Physics.Raycast(hoverPosition, hoverDirection, out RaycastHit hoverHit, _hoverRange, groundLayer))
+            {
+                if (!_isHoverHit[i]) _lastHoverPosition[i] = hoverPosition;
+                
+                float ratio = Mathf.Clamp01((_hoverRange - hoverHit.distance) / (_hoverRange - hover.height));
+                float amount = _hoverRange > hover.height ? ratio : 1;
+                float pressure = Mathf.Max(hover.height - hoverHit.distance, 0) / hover.height;
+                float velocity = Vector3.Dot(hoverPosition - _lastHoverPosition[i], -hoverDirection) / Time.fixedDeltaTime;
+                
+                float force = hover.force * amount;
+                float suspension = hover.suspension * hover.suspensionCurve.Evaluate(pressure) * hover.force;
+                float damping = hover.damping * velocity;
+                
+                float appliedHover = (force + suspension - damping) / _hoverCount;
+                
+                if (!hover.disable)
+                if (hover.forceType == 0) shipRigidbody.AddForce(appliedHover * -hoverDirection, ForceMode.Acceleration);
+                else shipRigidbody.AddForceAtPosition(appliedHover * -hoverDirection, hoverPosition, ForceMode.Acceleration);
+                
+                _hoverHitCount ++;
+                _hoverHitRatio += amount / _hoverCount;
+                _isHoverHit[i] = true;
+                _lastHoverPosition[i] = hoverPosition;
+                _hoverSensorTip[i] = hoverHit.point;
+                _hoverNormal[i] = hoverHit.normal;
+                hoverPressure[i] = pressure;
+            }
+            else
+            {
+                _isHoverHit[i] = false;
+                _hoverSensorTip[i] = hoverPosition + hoverDirection * _hoverRange;
+                _hoverNormal[i] = -hoverDirection;
+                hoverPressure[i] = 0;
+            }
+        }
+    }
+    
+    private void ApplyGravity() // SAME
+    {
+        float gravityAmount = Mathf.Lerp(gravity.airGravity, gravity.groundGravity, _hoverHitRatio);
+        
+        for (int i = 0; i < _hoverCount; i++)
+        {
+            if (!hoverSensors[i]) continue;
+            Vector3 gravityPosition = Vector3.Lerp(shipRigidbody.position, hoverSensors[i].position, gravity.gravitySpread);
+            Vector3 gravityDirection = gravity.direction == PhysicsConfig.Direction.World ? Vector3.down : -hoverSensors[i].up;
+            
+            if (gravity.direction == PhysicsConfig.Direction.Ground)
+                if (Physics.Raycast(gravityPosition, gravityDirection, out RaycastHit sensorHit, _hoverRange, groundLayer))
+                    gravityDirection = -sensorHit.normal;
+            
+            if (Physics.Raycast(gravityPosition, gravityDirection, out RaycastHit hoverHit, _hoverRange, groundLayer))
+            {
+                float groundAngle = Vector3.Angle(-hoverHit.normal, Vector3.down);
+                float angleFactor = Mathf.Clamp(groundAngle, 0, 90) / 90;
+                
+                Vector3 groundGravDirection = canLockToGround ? -hoverHit.normal : gravity.slipMode == PhysicsConfig.SlipMode.Ground ?
+                    Vector3.Lerp(-hoverHit.normal, Vector3.down, angleFactor) : Vector3.down;
+                
+                float appliedGravity = gravityAmount / _hoverCount;
+                if (!gravity.disable)
+                shipRigidbody.AddForceAtPosition(appliedGravity * groundGravDirection, gravityPosition, ForceMode.Acceleration);
+            }
+            else
+            {
+                float appliedGravity = gravityAmount / _hoverCount;
+                if (!gravity.disable)
+                shipRigidbody.AddForce(appliedGravity * Vector3.down, ForceMode.Acceleration);
+            }
+        }
+    }
+    
+    private void ApplyPitch(float pitchInput) // SAME - TEST VERSION CHANGED
+    {
+        bool isOppositeInput = Mathf.Sign(pitchControl) != Mathf.Sign(pitchInput) && pitchControl != 0 && pitchInput != 0;
+        float releaseTime = Mathf.Max(pitch.release, Time.fixedDeltaTime / Mathf.Abs(pitchControl));
+        float pitchTime = Mathf.Abs(pitchControl) < Mathf.Abs(pitchInput) && !isOppositeInput ? pitch.gain : releaseTime;
+        pitchControl = Mathf.MoveTowards(pitchControl, pitchInput, Time.fixedDeltaTime / pitchTime);
+        
+        Vector3 pitchAxis = shipRigidbody.transform.right;
+        Vector3 groundForward = Vector3.ProjectOnPlane(_hoverSensorTip[0] - _hoverSensorTip[1], pitchAxis).normalized;
+        
+        float currentAngle = Vector3.SignedAngle(groundForward, shipRigidbody.transform.forward, pitchAxis);
+        float targetAngle = pitch.angle * pitchControl;
+        float currentSpeed = Vector3.Dot(shipRigidbody.angularVelocity * Mathf.Rad2Deg, pitchAxis);
+        
+        if (_isOnGround && !pitch.manualMode)
+        {
+            float amount = pitch.force * (targetAngle - currentAngle);
+            float damping = pitch.damping * currentSpeed;
+            float appliedPitch = (amount - damping) * _hoverHitRatio;
+            shipRigidbody.AddTorque(appliedPitch * Mathf.Deg2Rad * pitchAxis, ForceMode.Acceleration);
+        }
+        else
+        {
+            if (!_isOnGround && orient.autoPitch) return;
+            float pitchAccel = _isOnGround ? pitch.groundAccel : pitch.flightAccel;
+            float pitchSpeed = _isOnGround ? pitch.groundSpeed : pitch.flightSpeed;
+            float pitchDecel = _isOnGround ? pitch.groundDecel : pitch.flightDecel;
+            
+            float targetSpeed = pitchSpeed * pitchControl;
+            bool isBothNonZero = currentSpeed != 0 && targetSpeed != 0;
+            bool isOppositeTarget = Mathf.Sign(currentSpeed) != Mathf.Sign(targetSpeed) && isBothNonZero;
+            bool canAccelerate = Mathf.Abs(currentSpeed) < Mathf.Abs(targetSpeed) || isOppositeTarget;
+            
+            float appliedAccel = canAccelerate ? pitchAccel : pitchDecel * pitchSpeed / 90;
+            float appliedPitch = appliedAccel * (targetSpeed - currentSpeed) / pitchSpeed;
+            shipRigidbody.AddTorque(appliedPitch * Mathf.Deg2Rad * pitchAxis, ForceMode.Acceleration);
+        }
+    }
+    
+    private void ApplyRoll(float rollInput) // SAME - TEST VERSION CHANGED
+    {
+        bool isOppositeInput = Mathf.Sign(rollControl) != Mathf.Sign(rollInput) && rollControl != 0 && rollInput != 0;
+        float releaseTime = Mathf.Max(roll.release, Time.fixedDeltaTime / Mathf.Abs(rollControl));
+        float rollTime = Mathf.Abs(rollControl) < Mathf.Abs(rollInput) && !isOppositeInput ? roll.gain : releaseTime;
+        rollControl = Mathf.MoveTowards(rollControl, rollInput, Time.fixedDeltaTime / rollTime);
+        
+        Vector3 groundNormal = (_hoverNormal[0] + _hoverNormal[1]).normalized;
+        Vector3 groundRight = Vector3.ProjectOnPlane(shipRigidbody.transform.right, groundNormal).normalized;
+        Vector3 rollAxis = shipRigidbody.transform.forward;
+        
+        float currentAngle = Vector3.SignedAngle(groundRight, shipRigidbody.transform.right, rollAxis);
+        float targetAngle = roll.angle * -rollControl;
+        float currentSpeed = Vector3.Dot(shipRigidbody.angularVelocity * Mathf.Rad2Deg, rollAxis);
+        float targetSpeed = roll.flightSpeed * -rollControl;
+        
+        if (_isOnGround)
+        {
+            float amount = roll.force * (targetAngle - currentAngle);
+            float damping = roll.damping * currentSpeed;
+            float appliedRoll = (amount - damping) * _hoverHitRatio;
+            if (!roll.disable) shipRigidbody.AddTorque(appliedRoll * Mathf.Deg2Rad * rollAxis, ForceMode.Acceleration);
+        }
+        else if (!orient.autoRoll)
+        {
+            bool isBothNonZero = currentSpeed != 0 && targetSpeed != 0;
+            bool isOppositeTarget = Mathf.Sign(currentSpeed) != Mathf.Sign(targetSpeed) && isBothNonZero;
+            bool canAccelerate = Mathf.Abs(currentSpeed) < Mathf.Abs(targetSpeed) || isOppositeTarget;
+            
+            float appliedAccel = canAccelerate ? roll.flightAccel : roll.flightDecel * roll.flightSpeed / 90;
+            float appliedRoll = appliedAccel * (targetSpeed - currentSpeed) / roll.flightSpeed;
+            shipRigidbody.AddTorque(appliedRoll * Mathf.Deg2Rad * rollAxis, ForceMode.Acceleration);
+        }
+    }
+    
+    private void ApplyThrust(float thrustInput, float reverseInput, bool boostInput) // CODE CHANGED - TESTED
+    {
+        float thrustTime = thrustInput > thrustControl ? thrust.gain : thrust.release;
+        thrustControl = Mathf.MoveTowards(thrustControl, thrustInput, Time.fixedDeltaTime / thrustTime);
+        float reverseTime = reverseInput > reverseControl ? thrust.gain : thrust.release;
+        reverseControl = Mathf.MoveTowards(reverseControl, reverseInput, Time.fixedDeltaTime / reverseTime);
+        boostControl = boostInput ? 1 : 0;
+        
+        float extraControlMod = (boostControl + reverseControl - boostControl * reverseControl);
+        float thrustControlMod = 1 - ((1 - thrustControl) * extraControlMod);
+        
+        float extraSpeed = boost.speed * boostControl - thrust.reverseSpeed * reverseControl;
+        float extraAccel = Mathf.Abs(boost.acceleration * boostControl - thrust.reverseAccel * reverseControl);
+        float abDragAmount = 1 - (airbrake.dragAmount / 100 * abDragControl);
+        float abDragDecel = airbrake.dragDecel * abDragControl;
+        
+        float currentSpeed = Vector3.Dot((shipRigidbody.velocity - _kinematicVelocity) * KPHFactor, transform.forward);
+        float targetSpeed = (thrust.speed * thrustControl + extraSpeed) * abDragAmount;
+        
+        bool isNonZero = currentSpeed != 0 && targetSpeed != 0;
+        bool isOppositeTarget = Mathf.Sign(currentSpeed) != Mathf.Sign(targetSpeed) && isNonZero;
+        bool isGreaterTarget = Mathf.Abs(currentSpeed) <= Mathf.Abs(targetSpeed);
+        
+        float accelRatio = !isOppositeTarget ? isGreaterTarget ?
+            (targetSpeed - currentSpeed) / thrust.speed : 0 : thrust.accelMode == PhysicsConfig.AccelMode.Normal ?
+            targetSpeed / thrust.speed : (targetSpeed - currentSpeed) / thrust.speed;
+        float decelRatio = !isOppositeTarget ? isGreaterTarget ?
+            0 : (currentSpeed - targetSpeed) / DecelBaseKPH : thrust.decelMode == PhysicsConfig.DecelMode.Normal ?
+            currentSpeed / DecelBaseKPH : 0;
+        
+        float appliedAccel = (thrust.acceleration * thrustControlMod + extraAccel) * accelRatio;
+        float appliedDecel = (thrust.deceleration + abDragDecel) * decelRatio;
+        float appliedThrust = appliedAccel - appliedDecel;
+        shipRigidbody.AddForce(appliedThrust / KPHFactor * shipRigidbody.transform.forward, ForceMode.Acceleration);
+    }
+    
+    private void ApplySteer(float steerInput) // CODE CHANGED - TESTED
+    {
+        bool isSteerNonZero = steerControl != 0 && steerInput != 0;
+        bool isOppositeInput = Mathf.Sign(steerControl) != Mathf.Sign(steerInput) && isSteerNonZero;
+        bool canGainSteer = Mathf.Abs(steerControl) < Mathf.Abs(steerInput) && !isOppositeInput;
+        
+        float releaseTime = Mathf.Max(steer.release, Time.fixedDeltaTime / Mathf.Abs(steerControl));
+        float steerTime = canGainSteer ? steer.gain : releaseTime;
+        steerControl = Mathf.MoveTowards(steerControl, steerInput, Time.fixedDeltaTime / steerTime);
+        
+        float steerControlMod = 1 - ((1 - Mathf.Abs(steerControl)) * Mathf.Abs(abTorqueControl));
+        float forwardSpeed = Vector3.Dot((shipRigidbody.velocity - _kinematicVelocity) * KPHFactor, transform.forward);
+        float forwardFactor = Mathf.Clamp(forwardSpeed / airbrake.torqueLimitKph, -1, 1);
+        
+        float abTorqueSpeed = airbrake.torqueSpeed * abTorqueControl * forwardFactor;
+        float abTorqueAccel = Mathf.Abs(airbrake.torqueAccel * abTorqueControl * forwardFactor);
+        
+        float currentSpeed = Vector3.Dot(shipRigidbody.angularVelocity * Mathf.Rad2Deg, transform.up);
+        float targetSpeed = steer.speed * steerControl + abTorqueSpeed;
+        
+        bool isNonZero = currentSpeed != 0 && targetSpeed != 0;
+        bool isOppositeTarget = Mathf.Sign(currentSpeed) != Mathf.Sign(targetSpeed) && isNonZero;
+        bool isGreaterTarget = Mathf.Abs(currentSpeed) <= Mathf.Abs(targetSpeed);
+        
+        float accelRatio = !isOppositeTarget ? isGreaterTarget ?
+            (targetSpeed - currentSpeed) / steer.speed : 0 : steer.accelMode == PhysicsConfig.AccelMode.Normal ?
+            targetSpeed / steer.speed : (targetSpeed - currentSpeed) / steer.speed;
+        float decelRatio = !isOppositeTarget ? isGreaterTarget ?
+            0 : (currentSpeed - targetSpeed) / DecelBaseDPS : steer.decelMode == PhysicsConfig.DecelMode.Normal ?
+            currentSpeed / DecelBaseDPS : 0;
+        
+        float appliedAccel = (steer.acceleration * steerControlMod + abTorqueAccel) * accelRatio;
+        float appliedDecel = steer.deceleration * decelRatio;
+        float appliedSteer = appliedAccel - appliedDecel;
+        shipRigidbody.AddTorque(appliedSteer * Mathf.Deg2Rad * shipRigidbody.transform.up, ForceMode.Acceleration);
+    }
+    
+    private void ApplyGrip() // SAME - TEST VERSION CHANGED
+    {
+        Vector3 groundNormal = (_hoverNormal[0] + _hoverNormal[1]).normalized;
+        Vector3 gripPlane = canLockToGround && _isOnGround ? groundNormal : Vector3.up;
+        Vector3 gripDirection = Vector3.ProjectOnPlane(shipRigidbody.transform.right, gripPlane);
+        
+        float forwardSpeed = Vector3.Dot((shipRigidbody.velocity - _kinematicVelocity) * KPHFactor,
+            shipRigidbody.transform.forward);
+        float forwardFactor = Mathf.Clamp(forwardSpeed / airbrake.driftLimitKph, -1, 1);
+        float airbrakeDrift = airbrake.driftAmount * abDriftControl * forwardFactor;
+        
+        float currentSpeed = Vector3.Dot(shipRigidbody.velocity - _kinematicVelocity, gripDirection);
+        gripControl = _hoverHitRatio >= grip.groundRatio ?
+            Mathf.SmoothStep(gripControl, grip.groundGrip, 1 / (grip.toGroundTime * 10)):
+            Mathf.SmoothStep(gripControl, grip.airGrip, 1 / (grip.toAirTime * 10));
+        
+        float targetGrip = Mathf.Clamp(gripControl * (1 - airbrakeDrift / 100), grip.minimum, 100);
+        float appliedGrip = currentSpeed * grip.gripCurve.Evaluate(targetGrip / 100);
+        shipRigidbody.AddForce(appliedGrip * -gripDirection, ForceMode.VelocityChange);
+    }
+    
+    private void ApplyAirbrake(float abLeftInput, float abRightInput) // SAME
+    {
+        float abDragInput = Mathf.Clamp01(abLeftInput + abRightInput - 1);
+        float abTorqueInput = abRightInput - abLeftInput;
+        float abDriftInput = Mathf.Abs(abLeftInput - abRightInput);
+        
+        float dragTime = abDragControl < abDragInput ? airbrake.dragGain : airbrake.dragRelease;
+        abDragControl = Mathf.MoveTowards(abDragControl, abDragInput, Time.fixedDeltaTime / dragTime);
+        
+        bool isBothNonZero = abTorqueControl != 0 && abTorqueInput != 0;
+        bool isOppositeInput = Mathf.Sign(abTorqueControl) != Mathf.Sign(abTorqueInput) && isBothNonZero;
+        bool canGainTorque = Mathf.Abs(abTorqueControl) < Mathf.Abs(abTorqueInput) && !isOppositeInput;
+        
+        float releaseTime = Mathf.Max(airbrake.torqueRelease, Time.fixedDeltaTime / Mathf.Abs(abTorqueControl));
+        float torqueTime = canGainTorque ? airbrake.torqueGain : releaseTime;
+        abTorqueControl = Mathf.MoveTowards(abTorqueControl, abTorqueInput, Time.fixedDeltaTime / torqueTime);
+        
+        float driftTime = abDriftControl < abDriftInput ? airbrake.driftGain : airbrake.driftRelease;
+        abDriftControl = Mathf.MoveTowards(abDriftControl, abDriftInput, Time.fixedDeltaTime / driftTime);
+    }
+    
+    private void ApplyStrafe(float strafeInput) // UPDATED TO PHYSICS-BASED KINEMATIC FORCES
+    {
+        bool isStrafeNonZero = strafeControl != 0 && strafeInput != 0;
+        bool isOppositeInput = Mathf.Sign(strafeControl) != Mathf.Sign(strafeInput) && isStrafeNonZero;
+        bool canGainStrafe = Mathf.Abs(strafeControl) < Mathf.Abs(strafeInput) && !isOppositeInput;
+        
+        float releaseTime = Mathf.Max(strafe.release, Time.fixedDeltaTime / Mathf.Abs(strafeControl));
+        float strafeTime = canGainStrafe ? strafe.gain : releaseTime;
+        strafeControl = Mathf.MoveTowards(strafeControl, strafeInput, Time.fixedDeltaTime / strafeTime);
+        
+        float currentSpeed = Vector3.Dot(_kinematicVelocity, transform.right) - _sideshiftVelocity;
+        float targetSpeed = strafe.speed * strafeControl;
+        
+        bool isNonZero = currentSpeed != 0 && targetSpeed != 0;
+        bool isOppositeTarget = Mathf.Sign(currentSpeed) != Mathf.Sign(targetSpeed) && isNonZero;
+        bool isGreaterTarget = Mathf.Abs(currentSpeed) <= Mathf.Abs(targetSpeed);
+        
+        float accelRatio = !isOppositeTarget ? isGreaterTarget ?
+            (targetSpeed - currentSpeed) / strafe.speed : 0 : strafe.accelMode == PhysicsConfig.AccelMode.Normal ?
+            targetSpeed / strafe.speed : (targetSpeed - currentSpeed) / strafe.speed;
+        float decelRatio = !isOppositeTarget ? isGreaterTarget ?
+            0 : (currentSpeed - targetSpeed) / DecelBaseMPS : strafe.decelMode == PhysicsConfig.DecelMode.Normal ?
+            currentSpeed / DecelBaseMPS : 0;
+        
+        float appliedAccel = strafe.acceleration * accelRatio;
+        float appliedDecel = strafe.deceleration * decelRatio;
+        float appliedStrafe = appliedAccel - appliedDecel;
+        
+        shipRigidbody.AddForce(appliedStrafe * shipRigidbody.transform.right, ForceMode.Acceleration);
+        _kinematicVelocity += appliedStrafe * shipRigidbody.transform.right * Time.fixedDeltaTime;
+    }
+    
+    private void ApplySideshift(float sideshiftInput) // NEW PHYSICS-BASED KINEMATIC FORCES
+    {
+        bool isSideshiftNonZero = sideshiftControl != 0 && _sideshiftInput != 0;
+        bool isOppositeInput = Mathf.Sign(sideshiftControl) != Mathf.Sign(_sideshiftInput) && isSideshiftNonZero;
+        bool canGainSideshift = Mathf.Abs(sideshiftControl) < Mathf.Abs(_sideshiftInput) && !isOppositeInput;
+        
+        float releaseTime = Mathf.Max(sideshift.release, Time.fixedDeltaTime / Mathf.Abs(sideshiftControl));
+        float sideshiftTime = canGainSideshift ? sideshift.gain : releaseTime;
+        sideshiftControl = Mathf.MoveTowards(sideshiftControl, _sideshiftInput, Time.fixedDeltaTime / sideshiftTime);
+        
+        float currentSpeed = _sideshiftVelocity;
+        float appliedSideshift = (sideshift.speed * sideshiftControl - currentSpeed) / Time.fixedDeltaTime;
+        
+        shipRigidbody.AddForce(appliedSideshift * shipRigidbody.transform.right, ForceMode.Acceleration);
+        _kinematicVelocity += appliedSideshift * shipRigidbody.transform.right * Time.fixedDeltaTime;
+        _sideshiftVelocity += appliedSideshift * Time.fixedDeltaTime;
+    }
+    
+    // TODO: Make boost kinematic. This method simulates Boost Mechanic
+    private void ApplyBoost()
+    {
+        
+    }
+    
+    // TODO: For Speed/Slow Pads, and Speed/Slow Zones, they are controlled by Vector3
+    // They may have another separate kinematicVelocity layers
+    // Heh, a new made-up concept: VELOCITY LAYERING, which is what physics-based kinematic forces use.
+    
+    private void ApplyOrient() // SAME
+    {
+        if (_isOnGround) return;
+        
+        if (orient.autoRoll)
+        {
+            float rollAngle = shipRigidbody.transform.eulerAngles.z;
+            if (rollAngle > 180) rollAngle -= 360;
+            
+            Vector3 rollAxis = shipRigidbody.transform.forward;
+            float currentSpeed = Vector3.Dot(shipRigidbody.angularVelocity * Mathf.Rad2Deg, rollAxis);
+            
+            float amount = orient.autoRollForce * -rollAngle;
+            float damping = orient.autoRollDamp * currentSpeed;
+            float appliedAutoRoll = amount - damping;
+            shipRigidbody.AddTorque(appliedAutoRoll * Mathf.Deg2Rad * rollAxis, ForceMode.Acceleration);
+        }
+        
+        if (orient.autoPitch)
+        {
+            float pitchAngle = shipRigidbody.transform.eulerAngles.x;
+            if (pitchAngle > 180) pitchAngle -= 360;
+            
+            Vector3 pitchAxis = shipRigidbody.transform.right;
+            float currentSpeed = Vector3.Dot(shipRigidbody.angularVelocity * Mathf.Rad2Deg, pitchAxis);
+            
+            float amount = orient.autoPitchForce * -pitchAngle;
+            float damping = orient.autoPitchDamp * currentSpeed;
+            float appliedAutoPitch = amount - damping;
+            shipRigidbody.AddTorque(appliedAutoPitch * Mathf.Deg2Rad * pitchAxis, ForceMode.Acceleration);
+        }
+    }
+    
+    
+    // INPUT EVENT BASED PHYSICS METHODS
+    private IEnumerator OnJump()
+    {
+        if (_canJump)
+        {
+            _canJump = false;
+            
+            Vector3 jumpDirection = shipRigidbody.transform.up;
+            float appliedJump = jump.force;
+            shipRigidbody.AddForce(appliedJump * jumpDirection, ForceMode.Impulse);
+            
+            WaitForSeconds waitForjumpCooldown = new WaitForSeconds(jump.cooldown);
+            
+            yield return waitForjumpCooldown;
+            _canJump = true;
+        }
+    }
+    
+    private IEnumerator OnSideshift(bool direction)
+    {
+        if (_isSideshifting) yield break;
+        
+        _sideshiftInput = direction ? 1 : -1;
+        sideshiftControl = 0;
+        _isSideshifting = true;
+        
+        yield return new WaitForSeconds(Mathf.Max(Time.fixedDeltaTime, sideshift.duration));
+        _sideshiftInput = 0;
+        
+        yield return new WaitForSeconds(sideshift.cooldown);
+        _isSideshifting = false;
+        yield break;
+    }
+    
+    private void OnRespawn()
+    {
+        transform.SetPositionAndRotation(new Vector3(25, 4, -375), Quaternion.Euler(Vector3.zero));
+    }
+    
+    
+    // MECHANIC EVENT BASED PHYSICS METHODS
+    private void OnSpeedPadHit(float speedPadInput)
+    {
+        Debug.Log($"The ship hit a Speed Pad at value {speedPadInput} !");
+    }
+    
+    private void OnSpeedZoneEnter(float speedZoneInput)
+    {
+        Debug.Log($"The ship entered a Speed Zone at value {speedZoneInput} !");
+    }
+    
+    private void OnSpeedZoneExit(float speedZoneInput)
+    {
+        Debug.Log($"The ship exited a Speed Zone at value {speedZoneInput} !");
+    }
+    
+    private void OnShipDamage(float slowdownAmount)
+    {
+        Debug.Log("The ship slow down because of damage.");
+    }
+    
+    private void OnShipDestroy()
+    {
+        Debug.Log("The ship is destroyed. Hover generator shutdown. All physics systems shutdown.");
+    }
+    
+    
+    
+}

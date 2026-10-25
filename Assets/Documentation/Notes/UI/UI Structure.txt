@@ -1,0 +1,57 @@
+--------------------------------------------------
+MAIN MENU SCENE STRUCTURE
+--------------------------------------------------
+UI [Canvas, MainMenuUIManager]
+    Background [UIBackground]
+    Title [UITitleScreen]
+        Background
+        Logo
+    Header [UIHeader]
+    Pages [UIPageManager]
+        Main Menu Page [UIPage]
+        Start Page [UIPage]
+        Options Page [UIPage]
+Game Manager [GameManager]
+    UI Manager [UIManager]
+
+
+--------------------------------------------------
+UI Code Architecture
+--------------------------------------------------
+UIManager
+    MainMenuUIManager
+    
+    RaceUIManager
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+--------------------------------------------------
+OLD MAIN MENU SCENE STRUCTURE
+--------------------------------------------------
+UI [Canvas, MenuManager]
+    Background [Image]
+    Title Screen [UITitleScreen]
+        Title Logo [UITitleLogo]
+        Title Button [UITitleButton]
+    Menu Screen [UIMenuScreen]
+        Header [UIMenuHeader]
+        Pages [UIMenuPageContainer]
+            Main Menu Page [UIPage]
+            Start Page [UIPage]
+            Options Page [UIPage]
+Game Manager [GameManager]
+    UI Manager [UIManager]

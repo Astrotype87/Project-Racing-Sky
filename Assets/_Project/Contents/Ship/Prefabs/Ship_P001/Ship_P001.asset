@@ -1,0 +1,436 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c16e0b8171e95e54c8e9673f63c20b0c, type: 3}
+  m_Name: Ship_P001
+  m_EditorClassIdentifier: 
+  profileID: ATLAS-Prototype-CLS-SL
+  details:
+    brandName: ATLAS
+    shipName: Prototype
+    fullName: ' "Delta"'
+    description: 
+  shipType: 0
+  speedClass: 0
+  standardStats:
+    speed: 0
+    acceleration: 0
+    handling: 0
+    grip: 0
+    airbrake: 0
+    stability: 0
+    health: 0
+    mass: 0
+    boost: 0
+    afterburner: 0
+    firepower: 0
+    sideshift: 0
+    strafe: 0
+    roll: 0
+  rawStats:
+    speed: 
+    acceleration: 
+    handling: 
+    grip: 
+    airbrake: 
+    stability: 
+    health: 
+    mass: 
+    boost: 
+    afterburner: 
+    firepower: 
+    sideshift: 
+    strafe: 
+    roll: 
+  shipModel: {fileID: 219003233242654055, guid: 1c26763b775e9514abc563988a1408a2, type: 3}
+  shipCollider: {fileID: 7810364788797582731, guid: 9f5c475c0d18e80418e535169c3fca7f, type: 3}
+  mechanicsConfig:
+    maxHealth: 0
+  physicsConfig:
+    world:
+      gravity: {x: 0, y: -100, z: 0}
+      drag: 0.25
+      angularDrag: 4
+      windTime: 0.5
+      turbulenceTime: 1
+      turbulenceNoise:
+        disabled: 0
+        ampMix: 10
+        freqMix: 1
+        amplitude: {x: 0.5, y: 5, z: 0.25}
+        frequency: {x: 1, y: 0.5, z: 1}
+        mode: 1
+        phase: {x: 0, y: 0, z: 0}
+        seed: {x: 0, y: 1, z: 2}
+        range: {x: 100, y: 100, z: 100}
+        offset: {x: 0, y: 0, z: 0}
+        outputX: 0
+        outputY: 0
+        outputZ: 0
+      density: 0
+      dragFormula: 0
+    body:
+      mass: 1000
+      dragScale: {x: 1, y: 2, z: 2}
+      angularDragScale: {x: 1, y: 1.5, z: 1}
+    hover:
+      sensors:
+      - offset: {x: 0, y: 0, z: 5}
+        rotation: {x: 0, y: 0, z: 0}
+      - offset: {x: 0, y: 0, z: -5}
+        rotation: {x: 0, y: 0, z: 0}
+      - offset: {x: 0, y: 0, z: 2.5}
+        rotation: {x: 0, y: 0, z: 0}
+      - offset: {x: 0, y: 0, z: -2.5}
+        rotation: {x: 0, y: 0, z: 0}
+      - offset: {x: 0, y: 0, z: 0}
+        rotation: {x: 0, y: 0, z: 0}
+      groundLayer:
+        serializedVersion: 2
+        m_Bits: 64
+      height: 3
+      falloff: 1
+      force: 200
+      pull: 200
+      suspension: 1
+      damping: 1.75
+      suspensionCurve:
+        serializedVersion: 2
+        m_Curve:
+        - serializedVersion: 3
+          time: 0
+          value: 0
+          inSlope: 1
+          outSlope: 1
+          tangentMode: 34
+          weightedMode: 0
+          inWeight: 0
+          outWeight: 0
+        - serializedVersion: 3
+          time: 1
+          value: 1
+          inSlope: 1
+          outSlope: 1
+          tangentMode: 34
+          weightedMode: 0
+          inWeight: 0
+          outWeight: 0
+        m_PreInfinity: 2
+        m_PostInfinity: 2
+        m_RotationOrder: 4
+      counterSlip: 0.5
+      counterDrag: 1
+      hoverDirection: 0
+      pullDirection: 0
+      hoverSpread: 1
+      pullSpread: 1
+      pitchEffect: 1
+      rollEffect: 0
+      powerOnTime: 0.5
+      powerOffTime: 1
+      powerOnCurve:
+        serializedVersion: 2
+        m_Curve:
+        - serializedVersion: 3
+          time: 0
+          value: 0.5
+          inSlope: 0.25
+          outSlope: 0.25
+          tangentMode: 69
+          weightedMode: 0
+          inWeight: 0
+          outWeight: 0.33333334
+        - serializedVersion: 3
+          time: 0.5
+          value: 0.625
+          inSlope: 0.25
+          outSlope: 0.75
+          tangentMode: 69
+          weightedMode: 0
+          inWeight: 0.33333334
+          outWeight: 0.33333334
+        - serializedVersion: 3
+          time: 1
+          value: 1
+          inSlope: 0.75
+          outSlope: 0.75
+          tangentMode: 69
+          weightedMode: 0
+          inWeight: 0.33333334
+          outWeight: 0
+        m_PreInfinity: 2
+        m_PostInfinity: 2
+        m_RotationOrder: 4
+      powerOffCurve:
+        serializedVersion: 2
+        m_Curve:
+        - serializedVersion: 3
+          time: 0
+          value: 0
+          inSlope: 0.6666667
+          outSlope: 0.6666667
+          tangentMode: 69
+          weightedMode: 0
+          inWeight: 0
+          outWeight: 0.33333334
+        - serializedVersion: 3
+          time: 0.75
+          value: 0.5
+          inSlope: 0.6666667
+          outSlope: 2
+          tangentMode: 69
+          weightedMode: 0
+          inWeight: 0.33333334
+          outWeight: 0.33333334
+        - serializedVersion: 3
+          time: 1
+          value: 1
+          inSlope: 2
+          outSlope: 2
+          tangentMode: 69
+          weightedMode: 0
+          inWeight: 0.33333334
+          outWeight: 0
+        m_PreInfinity: 2
+        m_PostInfinity: 2
+        m_RotationOrder: 4
+    jump:
+      force: 200
+      gain: 0
+      hold: 0
+      release: 0.75
+      enableAirJump: 0
+    thrust:
+      speed: 600
+      acceleration: 300
+      gain: 0.5
+      release: 0.5
+      tightAccel: 0
+      softDecel: 0
+    boost:
+      speed: 400
+      acceleration: 400
+      gain: 0
+      hold: 1
+      release: 0
+    afterburner:
+      speed: 200
+      acceleration: 200
+      accelCurve:
+        serializedVersion: 2
+        m_Curve:
+        - serializedVersion: 3
+          time: 0
+          value: 0
+          inSlope: 1.604888
+          outSlope: 2
+          tangentMode: 69
+          weightedMode: 0
+          inWeight: 0
+          outWeight: 0.33333334
+        - serializedVersion: 3
+          time: 0.25
+          value: 0.5
+          inSlope: 2
+          outSlope: 1
+          tangentMode: 69
+          weightedMode: 0
+          inWeight: 0.33333334
+          outWeight: 0.33333334
+        - serializedVersion: 3
+          time: 0.5
+          value: 0.75
+          inSlope: 1
+          outSlope: 0.5
+          tangentMode: 69
+          weightedMode: 0
+          inWeight: 0.33333334
+          outWeight: 0.33333334
+        - serializedVersion: 3
+          time: 1
+          value: 1
+          inSlope: 0.5
+          outSlope: 0.4959369
+          tangentMode: 69
+          weightedMode: 0
+          inWeight: 0.33333334
+          outWeight: 0
+        m_PreInfinity: 2
+        m_PostInfinity: 2
+        m_RotationOrder: 4
+      gain: 0
+      release: 0
+    airbrake:
+      dragAmount: 50
+      dragDecel: 2
+      dragGain: 1.5
+      dragRelease: 0.25
+      torqueSpeed: 60
+      torqueAccel: 90
+      torqueGain: 0.1
+      torqueRelease: 0.1
+      torqueLimitKph: 250
+      driftAmount: 25
+      driftGain: 0
+      driftRelease: 0
+      driftLimitKph: 250
+      slideSpeed: 25
+      slideAccel: 250
+      slideGain: 0.5
+      slideRelease: 0.5
+      slideLimitKph: 250
+      disableSlide: 1
+    grip:
+      groundGrip: 5
+      airGrip: 1
+      toGroundTime: 0
+      toAirTime: 0.5
+      localGrip: 0
+      counterDrag: 1
+    strafe:
+      speed: 50
+      acceleration: 100
+      gain: 0
+      release: 0
+      localStrafe: 1
+      tightAccel: 1
+      softDecel: 1
+    sideshift:
+      speed: 60
+      acceleration: 600
+      impulse: 0
+      gain: 0
+      hold: 0.2
+      release: 0
+      isKinematic: 0
+      enableAirSideshift: 0
+    steer:
+      speed: 60
+      acceleration: 300
+      gain: 0.1
+      release: 0.1
+      tightAccel: 0
+      softDecel: 0
+    pitch:
+      pitchUpHeight: 0
+      pitchDownHeight: 0
+      trackAngle: 6
+      trackForce: 60
+      trackDamping: 10
+      hoverRatio: 1
+      alignFront: 1
+      alignBack: 1
+      flightSpeed: 45
+      flightAccel: 120
+      gain: 0.1
+      release: 0.1
+      manualMode: 0
+      groundSpeed: 90
+      groundAccel: 153.15
+      groundDecel: 360
+    roll:
+      trackAngle: 12
+      trackForce: 30
+      trackDamping: 5
+      rollRecovery: 1
+      disable: 0
+      flightSpeed: 120
+      flightAccel: 360
+      gain: 0.1
+      release: 0.1
+    orient:
+      autoRoll: 0
+      autoRollForce: 30
+      autoRollDamp: 10
+      autoPitch: 0
+      autoPitchForce: 30
+      autoPitchDamp: 10
+    maglev:
+      groundLayer:
+        serializedVersion: 2
+        m_Bits: 64
+      height: 3
+      range: 6
+      force: 0.25
+      damping: 0.5
+      gain: 0
+      release: 0
+      enableAlign: 0
+      alignForce: 0
+      alignDamping: 0
+    jumpPad:
+      force: 300
+      gain: 0
+      hold: 0
+      release: 0.75
+    speedPad:
+      force: 1000
+      gain: 0
+      hold: 0.1
+      release: 0
+  audioConfig:
+    source:
+      engine: {fileID: 0}
+    engine_Speed:
+      volume:
+        baseUnit: 0
+        maxUnit: 0
+        amountPerUnit: 0
+        gain: 0
+        release: 0
+        smooth: 0
+      pitch:
+        baseUnit: 0
+        maxUnit: 0
+        amountPerUnit: 0
+        gain: 0
+        release: 0
+        smooth: 0
+      disabled: 0
+      volumeOutput: 0
+      pitchOutput: 0
+    engine_Thrust:
+      volume:
+        baseUnit: 0
+        maxUnit: 0
+        amountPerUnit: 0
+        gain: 0
+        release: 0
+        smooth: 0
+      pitch:
+        baseUnit: 0
+        maxUnit: 0
+        amountPerUnit: 0
+        gain: 0
+        release: 0
+        smooth: 0
+      disabled: 0
+      volumeOutput: 0
+      pitchOutput: 0
+    engine_SpeedPad:
+      volume:
+        amount: 0
+        gain: 0
+        hold: 0
+        release: 0
+        smooth: 0
+      pitch:
+        amount: 0
+        gain: 0
+        hold: 0
+        release: 0
+        smooth: 0
+      disabled: 0
+      volumeOutput: 0
+      pitchOutput: 0
+  brandLogo: {fileID: 0}
+  textLogo: {fileID: 0}
+  banner: {fileID: 0}

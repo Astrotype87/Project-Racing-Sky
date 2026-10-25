@@ -1,0 +1,482 @@
+using UnityEngine;
+using TMPro;
+
+public class RaceHUD : MonoBehaviour
+{
+    public ShipSystem targetShip;
+    
+    [Header("HUD Effects")]
+    [SerializeField] private bool dynamicHUD;
+    [SerializeField] private Vector2 HUDMoveStrength;
+    [SerializeField] [Range(0, 1)] private float HUDMoveSmooth;
+    
+    [Header("HUD References")]
+    [SerializeField] private RectTransform layer1;
+    [SerializeField] private TextMeshProUGUI speedText;
+    [SerializeField] private TextMeshProUGUI totalTimeText;
+    [SerializeField] private TextMeshProUGUI currentLapText;
+    [SerializeField] private TextMeshProUGUI lapTimeGroup;
+    [SerializeField] private TextMeshProUGUI currentLapNumberText;
+    [SerializeField] private TextMeshProUGUI currentLapTimeText;
+    
+    
+    // PROPERTIES
+    private ShipVector shipVector => targetShip.ShipVector;
+    private ShipRaceData shipRaceData => targetShip.ShipRaceData;
+    private ShipEvents shipEvents => targetShip.ShipEvents;
+    private Vector2 currentHUDOffset;
+    private Vector2 moveVelocity;
+    
+    public RaceHUD()
+    {
+        HUDMoveStrength = new Vector2(1, 0.5f);
+        HUDMoveSmooth = 0.1f;
+    }
+    
+    
+    
+    // MONOBEHAVIOUR METHODS
+    private void Start()
+    {
+        // REFACTOR: This RaceHUD script should NOT subscribe to ship events.
+        // Refer to current lap instead.
+        if (targetShip) shipEvents.OnShipCrossedLap += UpdateLap;
+        
+        SetCurrentLapTimeText(lapTimeGroup.transform.GetChild(0));
+    }
+    
+    private void Update()
+    {
+        if (!targetShip) return;
+        
+        UpdateSpeed();
+        UpdateTime();
+        
+        if (dynamicHUD) UpdateDymanicHUD();
+    }
+    
+    
+    // CLASS METHODS
+    private void UpdateSpeed()
+    {
+        int speed = Mathf.RoundToInt(targetShip.ShipVector.speedKPH);
+        speedText.text = speed.ToString();
+    }
+    
+    private void UpdateTime()
+    {
+        // REFACTOR: This method should not change both total time and current lap time at the same time
+        // Divide thid method into two: UpdateTotalTime() and UpdateLapTime()
+        if (totalTimeText)
+        totalTimeText.text = GetRaceTimeFormat(targetShip.ShipRaceData.totalTime);
+        currentLapTimeText.text = GetRaceTimeFormat(shipRaceData.lapTimes[shipRaceData.currentLap - 1]);
+    }
+    
+    private string GetRaceTimeFormat(float time)
+    {
+        int minutes = (int) time / 60;
+        int seconds = (int) time - 60 * minutes;
+        int cents = (int) (100 * (time - minutes * 60 - seconds));
+        return string.Format("{0:00}:{1:00}:{2:00}", minutes, seconds, cents);
+    }
+    
+    private void UpdateLap(ShipRaceData raceData)
+    {
+        // currentLap = targetShip.shipRaceManager.currentLap
+        // displayedHUDLaps = lapTimeGroup.transform.childCount
+        
+        // if (currentLap == displayedHUDLaps)
+        //     do nothing
+        // if (currentLap > displayedHUDLaps)
+        //     get how many HUD laps to add (currentLap - displayedHUDLaps)
+        //     instantiate lap time display many times
+        //     refresh all the lap times (this refreshes all lap times especially when you also switch the target ship)
+        //     set the current lap reference
+        // if (currentLap < displayedHUDLaps)
+        //     get how many HUD laps to reduce
+        //     destroy lap time display many times
+        //     refresh all the lap times (this refreshes all lap times especially when you also switch the target ship)
+        //     set the current lap reference
+        // update current lap time
+        
+        
+        
+        // REFACTOR: This RaceHUD script should NOT subscribe to ship events.
+        // Refer to target ship's current lap instead. Use Instantiate and Destroy to manage displayed lap times
+        if (!shipRaceData.Equals(raceData)) return;
+        
+        currentLapText.text = raceData.currentLap.ToString();
+        
+        Instantiate(lapTimeGroup.transform.GetChild(0), lapTimeGroup.transform);
+        
+        Transform currentLapNumber = lapTimeGroup.transform.GetChild(raceData.currentLap - 1);
+        SetCurrentLapTimeText(currentLapNumber);
+        
+        // Change lap element's name, text, and position
+        currentLapNumber.name = $"Lap {raceData.currentLap}";
+        currentLapNumberText.text = $"{raceData.currentLap}";
+        currentLapNumberText.rectTransform.localPosition = new Vector3(22.5f, -5 - 30 * raceData.currentLap, 0);
+    }
+    
+    private void SetCurrentLapTimeText(Transform currentLapNumber)
+    {
+        // REFACTOR: A chance this method will be imported/move contents to another method
+        currentLapNumberText = currentLapNumber.GetComponent<TextMeshProUGUI>();
+        currentLapTimeText = currentLapNumber.GetChild(0).GetComponent<TextMeshProUGUI>();
+    }
+    
+    private void UpdateDymanicHUD()
+    {
+        // Compute HUD offset
+        Vector2 targetHUDOffset = shipVector.localVelocity * HUDMoveStrength;
+        currentHUDOffset = Vector2.SmoothDamp(currentHUDOffset, targetHUDOffset, ref moveVelocity, HUDMoveSmooth);
+        
+        // Apply HUD offset
+        layer1.offsetMin = currentHUDOffset;
+        layer1.offsetMax = currentHUDOffset;
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+using System;
+using UnityEngine;
+
+// Third iteration of ship follow camera
+public class FollowCamera : MonoBehaviour
+{
+    // REFERENCES
+    public ShipSystem targetShip;
+    
+    [Header("Camera View")]
+    public CameraView closeView;
+    public CameraView farView;
+    public CameraView cockpitView;
+    public ViewMode viewMode;
+    
+    [Header("Camera Damping")]
+    public FollowDamping followDamping;
+    public OrbitDamping orbitDamping;
+    
+    [Header("Camera Effects")]
+    [Range(0, 100)] public float KPHPerFOV;
+    public bool debugCamera;
+    
+    [Header("Extra Options")]
+    public Vector3 startFollowOffset;       // For cosmetics, similar to wipeout after restarting the race, the camera comes from the right
+    public Vector3 startOrbitOffset;        // For cosmetics, similar to wipeout after restarting the race, the camera comes from the right
+    public Vector3 extraOffset;
+    public Vector3 extraOrbit;
+    public Vector3 extraRotation;
+    [Range(0, 2)] public float timeScale;
+    
+    
+    // PROPERTIES
+    private bool IsLockedToGround => targetShip.IsOnGround && targetShip.LockToGround;
+    private Transform target
+    {
+        get
+        {
+            if (GetCameraView(viewMode).targetMode == TargetMode.ShipModel)
+                return targetShip.ShipModelTransform;
+            else
+                return targetShip.ShipTransform;
+        }
+    }
+    
+    // PRIVATE VARIABLES
+    private Camera mainCamera;
+    private Vector3 pivotPoint;
+    private Vector3 pivotOffset;
+    private Vector3 cameraPosition;
+    private Quaternion cameraRotation;
+    private bool hasStarted;
+    
+    // FOLLOW DAMP
+    private Vector3 followDampPosition;         // Damped target position in global coordinates
+    private Vector3 followDampVelocity;         // Used in Mathf.SmoothDamp
+    private Vector3 lastFollowDampOffset;       // Previous calculation of next follow damp offset
+    private Vector3 nextFollowDampOffset;       // Local offset between follow damp position and target's position
+    private Vector3 followDampOffset;           // Applied follow damp offset, interpolated from last to next follow damp offset based on fixed update lapse
+    
+    // ORBIT DAMP
+    private Vector3 orbitDampRotation;          // Damped target rotation in global rotation
+    private Vector3 orbitDampVelocity;          // Used in Mathf.SmoothDampAngle
+    private Vector3 lastOrbitDampOffset;        // Previous calculation of next orbit damp offset
+    private Vector3 nextOrbitDampOffset;        // Local offset between orbit damp position and target's rotation
+    private Vector3 orbitDampOffset;            // Applied orbit damp offset, interpolated from last to next orbit damp offset based on fixed update lapse
+    
+    
+    // ENUMS, STRUCTS & CONSTRUCTOR
+    public enum ViewMode {Close, Far, Cockpit}
+    public enum TargetMode {Ship, ShipModel}
+    
+    [Serializable] public struct CameraView
+    {
+        public TargetMode targetMode;
+        public Vector3 offset;
+        public Vector3 rotation;
+        public float pivotDistance;
+        [Range(1e-05f, 179)] public float baseFOV;
+        
+        public void SetCameraView(TargetMode targetMode, Vector3 offset, Vector3 rotation, float pivotDistance, float baseFOV)
+        {
+            this.offset = offset; this.rotation = rotation;
+            this.pivotDistance = pivotDistance; this.baseFOV = baseFOV;
+        }
+    }
+    
+    [Serializable] public struct FollowDamping
+    {
+        public bool enabled;
+        [Range(0, 2)] public float xDamping;
+        [Range(0, 2)] public float yDamping;
+        [Range(0, 2)] public float zDamping;
+        [Range(0, 1)] public float xScale;
+        [Range(0, 1)] public float yScale;
+        [Range(0, 1)] public float zScale;
+        
+        public Vector3 damping => new Vector3(xDamping, yDamping, zDamping);
+        public Vector3 scale => new Vector3(xScale, yScale, zScale);
+        
+        public void SetDamping(float x, float y, float z) {xDamping = x; yDamping = y; zDamping = z;}
+        public void SetScale(float x, float y, float z) {xScale = x; yScale = y; zScale = z;}
+    }
+    
+    [Serializable] public struct OrbitDamping
+    {
+        public bool enabled;
+        [Range(0, 2)] public float pitchDamping;
+        [Range(0, 2)] public float yawDamping;
+        [Range(0, 2)] public float rollDamping;
+        [Range(0, 1)] public float pitchScale;
+        [Range(0, 1)] public float yawScale;
+        [Range(0, 1)] public float rollScale;
+        
+        public Vector3 damping => new Vector3(pitchDamping, yawDamping, rollDamping);
+        public Vector3 scale => new Vector3(pitchScale, yawScale, rollScale);
+        
+        public void SetDamping(float pitch, float yaw, float roll) {pitchDamping = pitch; yawDamping = yaw; rollDamping = roll;}
+        public void SetScale(float pitch, float yaw, float roll) {pitchScale = pitch; yawScale = yaw; rollScale = roll;}
+    }
+    
+    public FollowCamera()
+    {
+        closeView.SetCameraView(TargetMode.Ship, new Vector3(0, 3.25f, -10), new Vector3(10, 0, 0), 50, 78);
+        farView.SetCameraView(TargetMode.Ship, new Vector3(0, 5f, -12.5f), new Vector3(10, 0, 0), 50, 78);
+        cockpitView.SetCameraView(TargetMode.ShipModel, new Vector3(0, 0.7f, -2.67f), new Vector3(0, 0, 0), 0, 78);
+        
+        followDamping.SetDamping(0.15f, 0.05f, 0f);
+        followDamping.SetScale(0.55f, 0.4f, 1f);
+        followDamping.enabled = true;
+        
+        orbitDamping.SetDamping(0.1f, 0.2f, 0f);
+        orbitDamping.SetScale(0.05f, 0.05f, 1f);
+        orbitDamping.enabled = false;
+        
+        KPHPerFOV = 100;
+        timeScale = 1;
+    }
+    
+    
+    // MONOBEHAVIOUR METHODS
+    private void Awake()
+    {
+        mainCamera = Camera.main;
+        ResetDamping(startFollowOffset, startOrbitOffset);
+    }
+    
+    private void Update()
+    {
+        Time.timeScale = timeScale;
+        
+        if (Input.GetKeyDown(KeyCode.C)) ToggleCameraView();
+    }
+    
+    private void FixedUpdate()
+    {
+        if (!targetShip) {ResetDamping(Vector3.zero, Vector3.zero); return;}
+        
+        UpdateFollowDamping(GetCameraView(viewMode));
+        UpdateOrbitDamping(GetCameraView(viewMode));
+        
+        if (!hasStarted) hasStarted = true;
+    }
+    
+    private void LateUpdate()
+    {
+        CameraView currentCameraView = GetCameraView(viewMode);
+        
+        if (!targetShip) {ResetDamping(Vector3.zero, Vector3.zero); return;}
+        
+        UpdateInterpolation(currentCameraView);
+        UpdateFollowCamera(currentCameraView);
+        UpdateFOV(currentCameraView);
+    }
+    
+    private void OnDrawGizmos()
+    {
+        if (!debugCamera || !targetShip) return;
+        DrawCameraGizmos(GetCameraView(viewMode));
+        
+        void DrawCameraGizmos(CameraView view)
+        {
+            DrawLineSphere(target.position, target.TransformPoint(view.offset), new Color(1, 1, 1, 0.25f), new Color(1, 1, 1, 0.25f), 0.5f);
+            DrawLineSphere(target.TransformPoint(view.offset), target.TransformPoint(view.offset + pivotPoint), new Color(1, 1, 1, 0.5f), Color.white, 0.5f);
+            DrawLineSphere(target.TransformPoint(view.offset + pivotPoint), cameraPosition, new Color(1, 1, 0, 0.5f), Color.blue, 0.25f);
+        }
+        
+        void DrawLineSphere(Vector3 start, Vector3 end, Color c1, Color c2, float radius)
+        {
+            Gizmos.color = c1; Gizmos.DrawLine(start, end);
+            Gizmos.color = c2; Gizmos.DrawSphere(end, radius);
+        }
+    }
+    
+    
+    // CAMERA METHODS
+    private CameraView GetCameraView(ViewMode viewMode)
+    {
+        switch(viewMode)
+        {
+            case ViewMode.Close: return closeView;
+            case ViewMode.Far: return farView;
+            case ViewMode.Cockpit: return cockpitView;
+            default: return closeView;
+        }
+    }
+    
+    private Transform GetTargetTransform()
+    {
+        if (GetCameraView(viewMode).targetMode == TargetMode.ShipModel)
+            return targetShip.ShipModelTransform;
+        else
+            return targetShip.ShipTransform;
+    }
+    
+    private void ToggleCameraView()
+    {
+        viewMode = (ViewMode) ((int) viewMode == 2 ? 0 : (int) viewMode + 1);
+        if (viewMode != ViewMode.Far) ResetDamping(Vector3.zero, Vector3.zero);
+    }
+    
+    private void ResetDamping(Vector3 startFollowOffset, Vector3 startOrbitOffset)
+    {
+        followDampPosition = target.position + startFollowOffset;
+        lastFollowDampOffset = startFollowOffset;
+        orbitDampRotation = target.eulerAngles + startOrbitOffset;
+        lastOrbitDampOffset = startOrbitOffset;
+    }
+    
+    private void UpdateFollowDamping(CameraView view)
+    {
+        // Store previously calculated nextFollowDampOffset to be used in interpolation
+        if (hasStarted) lastFollowDampOffset = nextFollowDampOffset;
+        
+        // Convert damped postion to local position
+        followDampPosition = target.InverseTransformPoint(followDampPosition);
+        // Apply damping in three separate axis relative to ship direction
+        followDampPosition = new Vector3(
+            Mathf.SmoothDamp(followDampPosition.x, 0.0f, ref followDampVelocity.x, followDamping.damping.x),
+            Mathf.SmoothDamp(followDampPosition.y, 0.0f, ref followDampVelocity.y, followDamping.damping.y),
+            Mathf.SmoothDamp(followDampPosition.z, 0.0f, ref followDampVelocity.z, followDamping.damping.z));
+        // Convert damped position back to global position
+        followDampPosition = target.TransformPoint(followDampPosition);
+        
+        // Get global offset between target position and damped target position
+        nextFollowDampOffset = followDampPosition - target.position;
+        // Convert to local offset and filter each axis when ship is not locked to ground.
+        nextFollowDampOffset = new Vector3(
+            Vector3.Dot(nextFollowDampOffset, IsLockedToGround ? target.right :
+                Vector3.Scale(target.right, new Vector3(1, 0, 1))),
+            Vector3.Dot(nextFollowDampOffset, IsLockedToGround ? target.up :
+                Vector3.Scale(target.up, new Vector3(0, 1, 0))),
+            Vector3.Dot(nextFollowDampOffset, target.forward));
+        // Scale the follow damp offset
+        nextFollowDampOffset = Vector3.Scale(nextFollowDampOffset, followDamping.scale);
+    }
+    
+    private void UpdateOrbitDamping(CameraView view)
+    {
+        // Store previously calculated nextOrbitDampOffset to be used in interpolation
+        if (hasStarted) lastOrbitDampOffset = nextOrbitDampOffset;
+        
+        // Get offset between target rotation and damped target rotation, convert degree range to -180 to 180
+        orbitDampRotation = (Quaternion.Euler(orbitDampRotation) * Quaternion.Inverse(target.rotation)).eulerAngles;
+        for (int i = 0; i < 3; i++) orbitDampRotation[i] = Mathf.DeltaAngle(0, orbitDampRotation[i]);
+        
+        // Convert damped rotation to local rotation
+        orbitDampRotation = target.InverseTransformDirection(orbitDampRotation);
+        // Apply damping in three euler axis relative to global euler axis
+        orbitDampRotation = new Vector3(
+            Mathf.SmoothDampAngle(orbitDampRotation.x, 0.0f, ref orbitDampVelocity.x, orbitDamping.damping.x),
+            Mathf.SmoothDampAngle(orbitDampRotation.y, 0.0f, ref orbitDampVelocity.y, orbitDamping.damping.y),
+            Mathf.SmoothDampAngle(orbitDampRotation.z, 0.0f, ref orbitDampVelocity.z, orbitDamping.damping.z));
+        // Convert damped rotation back to global rotation
+        orbitDampRotation = target.TransformDirection(orbitDampRotation);
+        
+        // Sum up the target rotation and damped rotation offset
+        orbitDampRotation = (Quaternion.Euler(orbitDampRotation) * target.rotation).eulerAngles;
+        
+        // Get offset between target rotation and damped target rotation, convert degree range to -180 to 180
+        nextOrbitDampOffset = (Quaternion.Euler(orbitDampRotation) * Quaternion.Inverse(target.rotation)).eulerAngles;
+        for (int i = 0; i < 3; i++) nextOrbitDampOffset[i] = Mathf.DeltaAngle(0, nextOrbitDampOffset[i]);
+        // Convert damped rotation to local rotation
+        nextOrbitDampOffset = target.InverseTransformDirection(nextOrbitDampOffset);
+        // Scale the orbit damp offset
+        nextOrbitDampOffset = Vector3.Scale(nextOrbitDampOffset, orbitDamping.scale);
+    }
+    
+    private void UpdateInterpolation(CameraView view)
+    {
+        // Calculate the time passed since the last FixedUpdate() call
+        float Repeat(double t, double length) => (float) Math.Clamp(t - Math.Floor(t / length) * length, 0.0, length);
+        float fixedUpdateLapse = Repeat(Time.timeAsDouble, Time.fixedDeltaTime) / Time.fixedDeltaTime;
+        
+        // Interpolate from last to next follow damp offset based on fixed update lapse
+        followDampOffset = !followDamping.enabled ? Vector3.zero:
+            Vector3.Lerp(lastFollowDampOffset, nextFollowDampOffset, fixedUpdateLapse) * (viewMode == ViewMode.Cockpit ? 0 : 1);
+        
+        // // Interpolate from last to next orbit damp offset based on fixed update lapse where it wraps around 360
+        // if (orbitDamping.enabled)
+        //     for (int i = 0; i < 3; i++) orbitDampOffset[i] = (viewMode == ViewMode.Cockpit ? 0 : 1) *
+        //         Mathf.LerpAngle(lastOrbitDampOffset[i], nextFollowDampOffset[i], fixedUpdateLapse);
+        // else orbitDampOffset = Vector3.zero;
+        
+        orbitDampOffset = !orbitDamping.enabled ? Vector3.zero:
+            Vector3.Lerp(lastOrbitDampOffset, nextOrbitDampOffset, fixedUpdateLapse) * (viewMode == ViewMode.Cockpit ? 0 : 1);
+    }
+    
+    private void UpdateFollowCamera(CameraView view)
+    {
+        // Calculate pivot point and offset
+        pivotPoint = Vector3.forward * view.pivotDistance;
+        pivotOffset = pivotPoint + Quaternion.Euler(orbitDampOffset + extraOrbit) * -pivotPoint;
+        
+        // Apply camera offset and rotation
+        cameraPosition = target.TransformPoint(view.offset + pivotOffset + followDampOffset + extraOffset);
+        cameraRotation = target.rotation * Quaternion.Euler(view.rotation + orbitDampOffset + extraOrbit + extraRotation);
+        transform.SetPositionAndRotation(cameraPosition, cameraRotation);
+    }
+    
+    private void UpdateFOV(CameraView view)
+    {
+        // Increase FOV depending on ship forward speed
+        mainCamera.fieldOfView = viewMode == ViewMode.Cockpit ? view.baseFOV:
+            view.baseFOV + (targetShip.ShipVector.localVelocityKPH.z / KPHPerFOV * 0.78f);
+    }
+}

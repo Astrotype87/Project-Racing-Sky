@@ -1,0 +1,46 @@
+---------------------- CANCELLED ----------------------
+
+CENTRALIZED SHIP DATA REFERENCES
+- All ship components will have private ShipData class
+    - contains InputData, ControllerData, PhysicsData, etc.
+- All data classes will be turned into structs
+
+
+
+// ShipData class holds original values for 
+public class ShipData
+{
+    public InputData inputData;
+    public ControllerData controllerData;
+    public PhysicsData physicsData;
+    public VectorData vectorData;
+    public MechanicsData mechanicsData;
+    public RaceData raceData;
+}
+
+
+// Ship contains original instance of ShipData, which is passed to ship components only
+[SerializeField] private ShipData shipData;
+
+// Declaration of get-only property InputData inside Ship class
+public InputData InputData => shipData.inputData;
+
+
+// Accessing InputData members
+float thrustInput = ship.InputData.thrustInput;
+
+// Changing values inside InputData is illegal because it's a get-only property and a struct
+ship.InputData.thrustInput = 10;
+
+
+// Accessing inside ship components
+private ShipData shipData;
+private InputData inputData => shipData.inputData;
+
+
+// Accessing inside ship components
+private ShipData data;
+
+data.input.thrustInput = 1;
+
+

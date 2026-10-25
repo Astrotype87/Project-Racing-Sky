@@ -1,0 +1,91 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6a1beeeaa4c857546a31bf99372ed3e2, type: 3}
+  m_Name: Chapter 1
+  m_EditorClassIdentifier: 
+  chapterName: 
+  description: 
+  events:
+  - name: 
+    description: 
+    mode: 0
+    raceConfig:
+      raceMode: 0
+      shipType: 0
+      speedClass: 0
+      elimination:
+        mode: 0
+        startTime: 0
+        time: 0
+      combat:
+        time: 0
+        mode: 0
+        target: 0
+      blitz:
+        timeHealth: 0
+      speedrun:
+        targetSpeed: 0
+      racetrack: 
+      variant: 
+      laps: 0
+      hasSpeedPad: 0
+      hasSlowPad: 0
+      hasSpeedZone: 0
+      hasStallZone: 0
+      pilots: 0
+      difficulty: 0
+      playerShips: []
+      AIShips: []
+      pickupLevel: 0
+      pickupList: []
+      canRespawn: 0
+      canDamage: 0
+      canClip: 0
+    tournamentConfig:
+      events: []
+  - name: 
+    description: 
+    mode: 0
+    raceConfig:
+      raceMode: 0
+      shipType: 0
+      speedClass: 0
+      elimination:
+        mode: 0
+        startTime: 0
+        time: 0
+      combat:
+        time: 0
+        mode: 0
+        target: 0
+      blitz:
+        timeHealth: 0
+      speedrun:
+        targetSpeed: 0
+      racetrack: 
+      variant: 
+      laps: 0
+      hasSpeedPad: 0
+      hasSlowPad: 0
+      hasSpeedZone: 0
+      hasStallZone: 0
+      pilots: 0
+      difficulty: 0
+      playerShips: []
+      AIShips: []
+      pickupLevel: 0
+      pickupList: []
+      canRespawn: 0
+      canDamage: 0
+      canClip: 0
+    tournamentConfig:
+      events: []

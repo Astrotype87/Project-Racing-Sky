@@ -1,0 +1,47 @@
+CLEARED AT 2024/08/10 07:58 AM
+
+-------------------- TO DO TASKS --------------------
+SHIP CAMERA
+/   1. Consider using Transform.RotateAround(), but test it on the Testing Scene first
+        Consider watching: https://youtu.be/rKGsELBgpQY?t=520  
+/   2. Add Camera Shake
+>>> 3. Make the camera collide with other objects so it doesnt clip
+        Consider using raycast at camera offset direction
+        If the normal behind faces the ship, make camera direction go toward the ship (reduce X & Z ofset)
+        If the normab behind faces downwards, make camera reduce the height (reduce Z offset only)
+/   4. Conside Version 2 for follow & orbit damping system.
+        Calculate the damp offset in FixedUpdate()
+        Calculate the offset and scale in LateUpdate() multiplying the scale first before damping
+
+SHIP CAMERA BUG FIXING
+/   1. Something is wrong with Orbit Pitch Damp. It's taking the world axis
+        Check the orbit damp if it's applying global or local axis
+        Punch the orbitDampOffset with [SerializeField] in the inspector to check it
+        Then pitch down and turn right, take a look at orbitDampOffset
+/   2. Slight jolt when the ship falls to the ground when rotated a bit sideways
+        Expose the equivalence of InverseTransformDireciton, apply scale before smooth damping
+            Possible equivalence:
+            // (parentPosition - childPosition) + (parentRotation * -(parentPosition - childPosition))
+            offset = parentPosition - childPosition
+            localChildPosition = offset + paarentRotation * -offset
+
+SHIP PHYSICS
+X   0. Entire system refactoring test (TOTAL KINEMATIC-BASED PHYSICS)
+        X All ship physics modules will rely on direct velocity modification instead of acceleration/forces.
+        X This will be done through this example pseudocode:
+            shipRigidbody.AddForce(shipRigidbody.velocity - desiredSpeed, ForceMode.VelocityChange);
+        << WARNING >>
+            - the downside of this system is it OVEERIDES natural physics simulation, especially COLLISIONS
+            - you must choose which position and rotation axis you would like to be overriten
+                - side physics >> prevent being pushed sideways, ships cannot push each other sideways
+                - up physics >> prevent being pushed up or down
+                - forward physics >> prevent being pushed from the front or back, ship cannot push another ship forward
+                - pitch physics >> prevents being rotated upwards/downwards, including the AddForceAtPosition based hover physics
+                - yaw physics >> prevents being rotated left/right, prevents pit maneuver, prevents rotation when collising in the wall
+                - roll physics >> prevents being rotated sidewards, including the AddForceAtPosition based hover physics
+    
+    
+/   1. Gravity drag - there should be a maximum fall speed
+/   2. Roll cotrol and drag - implement physics for rolling the ship while on air
+/   3. (IDEA) Custom gravity: Normal Gravity/Weak Gravity/No Gravity
+

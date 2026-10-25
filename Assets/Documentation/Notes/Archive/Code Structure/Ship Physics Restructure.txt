@@ -1,0 +1,120 @@
+public class ShipPhysics : MonoBehaviour
+{
+    // INSPECTOR VARIABLES
+	[SerializeField] private Rigidbody shipRigidbody;
+	[SerializeField] private Transform hoverSensors;
+	[SerializeField] private HoverPhysics hover;
+	[SerializeField] private ThrustPhysics thrust;
+	[SerializeField] private SteerPhysics steer;
+	
+    // PROPERTIES
+	public ShipInput shipInput {private get; set;}
+	
+    // PRIVATE VARIABLES
+	private _groundForward
+	
+    
+    // MONOBEHAVIOUR METHODS
+    void Awake()
+    {
+        Initialize();
+    }
+	
+	void FixedUpdate()
+	{
+		UpdateShipPhysics();
+	}
+    
+    
+    // CLASS METHODS
+    private voio Initialize()
+    {
+        hover.rigidbody = shipRigidbody;
+        gravity.rigidbody = shipRigidbody;
+        thrust.rigidbody = shipRigidbody;
+        steer.rigidbody = shipRigidbody;
+        grip.rigidbody = shipRigidbody;
+        pitch.rigidbody = shipRigidbody;
+        
+        hover.hoverSensors = hoverSensors;
+        gravity.hoverSensors = hoverSensors;
+    }
+    
+    private void UpdateShipPhysics()
+    {
+        Vector3 hoverForce = hover.CalculateHover(hoverSensors, out _groundForward);
+		Vector3 gravityForce = gravity.CalculateGravity(hoverSensors);
+		Vector3 thrustForce = thrust.CalculateThrust(shipInput.thrust);
+		Vector3 gripForce = thrust.CalculateGrip(shipInput.thrust);
+        
+		Vector3 steerForce = steer.Calculate(shipInput.steer);
+		Vector3 pitchForce = pitch.Calculate(shipInput.pitch, _groundForward);
+		Vector3 rollForce = roll.Calculate(shipInput.roll);
+		
+		Vector3 totalForce = hoverForce + thrustForce;
+		Vector3 totalTorque = steerForce + pitchForce + rollForce;
+		
+		shipRigidbody.AddForce(totalForce, ForceMode.Acceleration);
+		shipRigidbody.AddTorque(totalTorque, ForceMode.Acceleration);
+    }
+}
+
+
+[Serializable] public class HoverPhysics
+{
+	public float hoverRange;
+	public float hoverForce;
+	public float hoverDamp;
+	
+	public Rigidbody rigidbody {private get; set;}
+	public Rigidbody hoverSensors {private get; set;}
+	
+	public Vector3 CalculateHover(Transform[] hoverSensors, out Vector3 groundForward)
+	{
+		return hoverForce * Vector3.up;
+	}
+}
+
+[Serializable] public class ThrustPhysics
+{
+    public float thrustSpeed;
+    public float thrustAccel;
+    public float thrustDeccel;
+    public float thrustAttack;
+    public float thrustRelease;
+    
+    private const float KphFactor = 3.6f;
+    private float thrustControl;
+    private float p_thrustControl;
+    
+    public ThrustPhysics()
+    {
+        thrustForce = 225;
+        thrustSpeed = 600;
+        thrustStall = 500;
+        
+        thrustAttack = 1f;
+        thrustRelease = 0.5f;
+    }
+    
+    public Vector3 CalculateThrust(Rigidbody shipRigidbody)
+    {
+        float thrustTime = Mathf.Abs(thrustControl) >= Mathf.Abs(p_thrustControl) ? thrustAttack : thrustRelease;
+        p_thrustControl = thrustControl;
+        thrustControl = Mathf.MoveTowards(thrustControl, thrustInput, Time.deltaTime / thrustTime);
+        
+        Vector3 thrustDirection = shipRigidbody.transform.forward;
+        float currentThrustSpeed = Vector3.Dot(shipRigidbody.velocity * KphFactor, thrustDirection);
+        
+        float dragFactor = currentThrustSpeed / thrustSpeed;
+        float stallFactor = currentThrustSpeed / 1000;
+        
+        float appliedThrustForce = thrustForce * thrustControl;
+        float appliedThrustDrag = thrustForce * dragFactor * Mathf.Abs(thrustControl);
+        float appliedThrustStall = thrustStall * stallFactor * (1 - Mathf.Abs(thrustControl));
+        
+        float totalThrustForce = (appliedThrustForce - appliedThrustDrag - appliedThrustStall) / KphFactor;
+        return totalThrustForce * thrustDirection;
+    }
+}
+

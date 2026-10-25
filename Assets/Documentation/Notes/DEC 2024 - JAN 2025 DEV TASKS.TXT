@@ -1,0 +1,33 @@
+REFACTORING TASKS
+
+
+OCT-05-2024 SAT
+- Refactor ShipPhysics
+    - Extract methods
+        * Move physics component methods ApplyHover(), ApplyThrust() etc. into
+            new classes HoverPhysics, ThrustPhysics
+        * Move new classes HoverPhysics.cs, etc. to a new folder Physics
+    - Create interface for physics components
+        * Create new IPhysicsComponent interface, inside Physics folder
+    - Setter injection
+        * Create setters for injecting dependencies:
+            Rigidbody shipRigidbody, InputData inputData, StateData stateData
+    - Refactor physics components readability
+        * Split method for each ship physics classes to make
+            each physics component easier to understand
+
+- Refactoring ShipMechanics
+    - Rename ShipMechanics class into ShipState/ShipStatus
+        * ShipState now have the rights to update VectorData
+            so move Ship.UpdateVectorData() to ShipState.UpdateVectorData()
+    - Rename MechanicsData class into StateData/StatusData
+        * 
+
+- Consider PilotInput & ShipController code architecture
+    - What about PilotInput class will containing logic for ShipController class?
+    - What about renaming ShipController?
+        * Rename ShipController into ShipControl
+        * Rename ControllerData into ControlData
+            > Naming conflict with ShipPhysics' ControlData that
+                contains InputData modified with gain and release values
+

@@ -1,0 +1,17 @@
+-----------------------------------------------
+INPUT-TO-SHIP INTERACTION
+-----------------------------------------------
+// InputEvents class listens to keyboard, gamepad, and touch input
+private InputEvents inputEvents;
+KeyboardInputHandler.thrustAction.performed += context => inputEvents.OnThrust?.Invoke(context.ReadValue<float>());
+GamepadInputHandler.thrustAction.performed += context => inputEvents.OnThrust?.Invoke(context.ReadValue<float>());
+TouchInputHandler.OnThrust += value => inputEvents.OnThrust?.Invoke(value);
+
+// InputManager listens to InputEvents and controls playerShip.PilotInput accordingly
+[SerializedField] private Ship playerShip;
+InputManager.InputEvents.OnThrust += value => playerShip.PilotInput.thrustInput = value;
+InputManager.InputEvents.OnBoost += () => playerShip.PilotInput.OnBoost?.Invoke();
+
+// Ship controller updates InputData based on PilotInput, TrackInput and ZoneInput
+ShipController.inputData.thrustInput = pilotInput.thrustInput;
+if (canConsumeBoost) inputData.OnBoost?.Invoke();
