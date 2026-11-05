@@ -232,14 +232,14 @@ namespace ProjectRacingSky.Ship
         
         public void UnregisterInputEvents()
         {
-            inputData.OnHover += InvokeHover;
-            inputData.OnJump += InvokeJump;
-            inputData.OnBoost += InvokeBoost;
-            inputData.OnSideshift += InvokeSideshift;
+            inputData.OnHover -= InvokeHover;
+            inputData.OnJump -= InvokeJump;
+            inputData.OnBoost -= InvokeBoost;
+            inputData.OnSideshift -= InvokeSideshift;
             
-            inputData.OnMaglev += InvokeMaglev;
-            inputData.OnJumpPad += InvokeJumpPad;
-            inputData.OnSpeedPad += InvokeSpeedPad;
+            inputData.OnMaglev -= InvokeMaglev;
+            inputData.OnJumpPad -= InvokeJumpPad;
+            inputData.OnSpeedPad -= InvokeSpeedPad;
         }
         
         
@@ -562,7 +562,8 @@ namespace ProjectRacingSky.Ship
             bool isNonZero = currentSpeed != 0 && targetSpeed != 0;
             bool isOppositeTarget = Mathf.Sign(currentSpeed) != Mathf.Sign(targetSpeed) && isNonZero;
             bool isGreaterTarget = Mathf.Abs(currentSpeed) < Mathf.Abs(targetSpeed);
-            float accelRatio = !isOppositeTarget ? isGreaterTarget ? 1 - currentSpeed / targetSpeed : 0
+            float accelRatio = !isOppositeTarget
+                ? isGreaterTarget ? 1 - currentSpeed / targetSpeed : 0
                 : thrust.tightAccel ? 1 - currentSpeed / targetSpeed : 1;
             
             // APPLY THRUST
@@ -575,7 +576,8 @@ namespace ProjectRacingSky.Ship
             shipRigidbody.AddForce(totalThrust / KPHFactor * thrustDirection, ForceMode.Acceleration);
             
             // COUNTER FORWARD DRAG
-            _counterDrag += !isOppositeTarget ? isGreaterTarget ? thrustDirection : Vector3.zero
+            _counterDrag += !isOppositeTarget
+                ? isGreaterTarget ? thrustDirection : Vector3.zero
                 : thrust.softDecel ? thrustDirection : Vector3.zero;
         }
         
@@ -681,7 +683,8 @@ namespace ProjectRacingSky.Ship
             bool isNonZero = currentSpeed != 0 && targetSpeed != 0;
             bool isOppositeTarget = Mathf.Sign(currentSpeed) != Mathf.Sign(targetSpeed) && isNonZero;
             bool isGreaterTarget = Mathf.Abs(currentSpeed) < Mathf.Abs(targetSpeed);
-            float accelRatio = !isOppositeTarget ? isGreaterTarget ? 1 - currentSpeed / targetSpeed : 0
+            float accelRatio = !isOppositeTarget
+                ? isGreaterTarget ? 1 - currentSpeed / targetSpeed : 0
                 : steer.tightAccel ? 1 - currentSpeed / targetSpeed : 1;
             
             // APPLY ALL STEER FORCES
@@ -691,8 +694,9 @@ namespace ProjectRacingSky.Ship
             shipRigidbody.AddTorque(totalSteer * Mathf.Deg2Rad * shipRigidbody.transform.up, ForceMode.Acceleration);
             
             // COUNTER TURN DRAG
-            _counterAngularDrag += !isOppositeTarget ? isGreaterTarget ?
-                steerAxis : steerAxis * (targetSpeed / currentSpeed).NaNInfSafe() : steer.softDecel ? steerAxis : Vector3.zero;
+            _counterAngularDrag += !isOppositeTarget
+                ? isGreaterTarget ? steerAxis : steerAxis * (targetSpeed / currentSpeed).NaNInfSafe()
+                : steer.softDecel ? steerAxis : Vector3.zero;
         }
         
         private void ApplyPitch()

@@ -83,7 +83,7 @@ namespace ProjectRacingSky.Ship
         
         public Control control;
         
-        public struct Control
+        [Serializable] public struct Control
         {
             [Header("Global Control")]
             public Vector3 wind;
